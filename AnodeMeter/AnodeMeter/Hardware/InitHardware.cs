@@ -1,0 +1,178 @@
+﻿using System;
+//using Microsoft.SPOT;
+//using GHI.Premium.Hardware.LowLevel;
+//using GHI.IO;
+//using GHI.IO.Storage;
+//using GHI.Utilities;
+//using GHI.Usb.Client;
+//using GHI.Processor;
+//using GHI.Premium.Hardware;
+//using Microsoft.SPOT.Hardware;
+using AnodeMeter.Common;
+using Hardware.LcdCharacterDisplay;
+using GHIElectronics.TinyCLR.Native;
+using GHIElectronics.TinyCLR.IO;
+using GHIElectronics.TinyCLR.Pins;
+using GHIElectronics.TinyCLR.Devices.Adc;
+using GHIElectronics.TinyCLR.Devices.Storage;
+
+namespace AnodeMeter.Hardware
+{
+    public class ConfigureSystem : SystemInit
+    {
+        //public static SDCard _ps = null;
+        public static StorageController _ps = null;
+        
+        //private OutputPort _SELI = null;
+
+        private static AnodeMeter Meter = null;
+        public ConfigureSystem(AnodeMeter parent)
+        {
+            Meter = parent;
+        }
+
+        ~ConfigureSystem()
+        {
+            Close();
+        }
+
+        public override void InitOnStart()
+        {
+#warning //TODO Set up Glitch Filter (now per GPIO, or still CPU? Find out...
+//            Cpu.GlitchFilterTime = new TimeSpan(TimeSpan.TicksPerMillisecond * 200);
+
+#if (!EMULATOR)
+            // We want to use some LCD pins, so set configuration to Headless.
+            // This requires a reset to take effect. We only reset if the state had to be changed
+
+#if (MF_FRAMEWORK_VERSION_V4_3)
+            if(Display.Disable())
+                PowerState.RebootDevice(false, 1000);
+#else
+            //if(GHI.Premium.Hardware.Configuration.LCD.Set(Configuration.LCD.HeadlessConfig))
+            //    PowerState.RebootDevice(false, 1000);
+#endif
+#endif
+            // Determine our platform, EMX or G120
+ /*           if (IOMap.IsG120())
+            {
+                IOMap.SetG120();
+                Globals.G120 = true;
+            }
+ */
+            Profile.DebugTime("IO Mapped"); //TODO DAV DEBUG
+            // We do an early read of the analog input here to give it time to settle
+            // Without this our initial battery reads (on EMX at least) come in at 5.1 when it is 4.2, so clearly some analog problems in HW or SDK!
+            // DAV 10AUG15 
+
+            AdcChannel VBatt = AdcController.FromName(SC20260.Adc.Controller1.Id).OpenChannel(IOMap.VBatt);
+            // Microsoft.SPOT.Hardware.AnalogInput VBatt = new Microsoft.SPOT.Hardware.AnalogInput(IOMap.VBatt);
+            VBatt.ReadValue(); //Debug.Print("VBatt Preread= " + VBatt.ReadRaw());
+            VBatt.Dispose();
+
+            // Also drop the red LED
+            PhysicalLED _led = new PhysicalLED(); //TODO DAV Debug (This may cause problems when the PWMs are allocated again?)
+            Meter._led = _led;
+            Profile.DebugTime("LED Dimmed"); //TODO DAV DEBUG
+
+            LiquidCrystal _lcd = new LiquidCrystal();
+            Meter._lcd = _lcd;
+            _lcd.Initialize();
+            Profile.DebugTime("LCD Constructed"); //TODO DAV DEBUG
+
+            FlashSettings.OnBoot();
+            Profile.DebugTime("FlashSettings.OnBoot Done"); //TODO DAV DEBUG
+
+            FlashWifi.OnBoot();
+            Profile.DebugTime("FlashWifi.OnBoot Done"); //TODO DAV DEBUG
+
+            // If not using the Ethernet Port, switch the oscillator off to save ~25mA 
+            // At the moment, this glues the system, see: http://www.tinyclr.com/forum/10/3587/#/1/
+            // DAV 29MAY13 - Back in as should work under 4.2
+            //     01JUN13 - But locks up on G120!
+//#if (!MF_FRAMEWORK_VERSION_V4_3)
+//            //TODO DAV - Missing function on 4.3??
+//            if (!Globals.G120)
+//                Power.EthernetOscillatorEnable(false);
+//#endif
+            if (_ps != null)
+                Close();
+
+            try
+            {
+                _ps = StorageController.FromName(SC20260.StorageController.SdCard);
+                var drive = FileSystem.Mount(_ps.Hdc);
+//                _ps = FileSystem.Mount(sd.Hdc);
+//                _ps = new SDCard();
+                Globals.SDCardPresent = true;
+            }
+            catch (Exception ex)
+            {
+                // Logging doesn't really make sense if no SD to log to...
+                Logging.IssueEvent(Logging.ErrSeverity.Fatal, "ConfigureSystem::OnInitStart", "Error Allocating Persistent Storage. Reason: " + ex.Message, "No SD Card?");
+                Globals.SDCardPresent = false;
+            }
+            Profile.DebugTime("SD Persistent Created"); //TODO DAV DEBUG
+            if (Globals.SDCardPresent)
+                ProtectedFsMount();
+
+            Profile.DebugTime("InitOnStart Calling Base"); //TODO DAV DEBUG
+            base.InitOnStart();
+        }
+
+        public override void Close()
+        {
+            if (_ps != null)
+            {
+                FileSystem.Unmount(_ps.Hdc);
+//                _ps.Unmount();
+//                _ps.Dispose();
+                _ps = null;
+            }
+        }
+        public static void ProtectedFsMount()
+        {
+            int Retries = 0;
+            bool Done = false;
+
+            while (!Done)
+            {
+                try
+                {
+                    _ps = StorageController.FromName(SC20260.StorageController.SdCard);
+                    var drive = FileSystem.Mount(_ps.Hdc);
+                    //_ps.Mount();
+                    //TODO DAV - Don't know why we needed a Sleep here? Will try removing it for now. If things break, replace it or find out why. 18OCT15
+                    //System.Threading.Thread.Sleep(1000);
+                    Done = true;
+                }
+                catch (Exception ex)
+                {
+                    if (++Retries > 5)
+                    {
+                        Logging.IssueEvent(Logging.ErrSeverity.Fatal, "ConfigureSystem::ProtectedFsMount", "Error Mounting the SD File-System. Reason: " + ex.Message, "SD Card Err");
+                        Done = true;
+                    }
+                    else
+                        System.Threading.Thread.Sleep(1000);
+                }
+            }
+        }
+        public override void Hibernate()
+        {
+            // Hibernate, wake up on button push, or RTC alarm
+            //Power.Hibernate(Power.WakeUpInterrupt.InterruptInputs); 
+            // RTC alarm set for 1 hour. If it is an hour before we wake, assume no activity and power off
+            // DAV 11AUG15
+            //RealTimeClock.SetAlarm(DateTime.Now + new TimeSpan(60 * TimeSpan.TicksPerMinute));
+            //DAV -  Note that the above line works, but as RTC and local time may not be in sync, the following is meant to be safer
+            ///RealTimeClock.SetAlarm(RealTimeClock.GetDateTime().AddMinutes(60));
+            //Power.Hibernate(Power.WakeUpInterrupt.InterruptInputs | Power.WakeUpInterrupt.RTCAlarm); 
+            //TODO DAV Fixed Wakeup for 4.3 and RTC!!
+            ///PowerState.WakeupEvents |= (HardwareEvent.OEMReserved1 | HardwareEvent.OEMReserved2);
+            ///PowerState.Sleep(SleepLevel.DeepSleep, HardwareEvent.OEMReserved1 | HardwareEvent.OEMReserved2);
+
+            Power.Sleep(DateTime.Now.AddMinutes(60));
+        }
+    }
+}
