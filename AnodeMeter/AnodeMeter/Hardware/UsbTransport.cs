@@ -19,7 +19,11 @@ namespace AnodeMeter.Hardware
         private static RawDevice _usbDevice = null;
         private Thread _pollUsb = null;
         static bool _bWritePending;
-        static UsbClientController UsbController = UsbClientController.GetDefault();
+
+        static UsbClientController UsbController;
+        static WinUsb winUsb;
+
+
 
         static UsbClientSetting usbClientSetting = new UsbClientSetting()
         {
@@ -29,14 +33,25 @@ namespace AnodeMeter.Hardware
             SerialNumber = "1",
             Guid = "{77C99034-2428-424a-8130-DC481841429B}",
         };
-        
-        WinUsb winUsb = new WinUsb(UsbController, usbClientSetting);
+
+        //UsbController = UsbClientController.GetDefault();
+
+        //WinUsb winUsb = new WinUsb(UsbClientController.GetDefault(), usbClientSetting);
+  
 
         DeviceState _usbState = DeviceState.Default;
         //UsbController.PortState _usbState = UsbController.PortState.Stopped;
 
         public UsbTransport()
         {
+            try
+            {
+                UsbController = UsbClientController.GetDefault();
+                winUsb = new WinUsb(UsbController, usbClientSetting);
+            } catch(Exception ex)
+            {
+                Debug.WriteLine("UsbTransport Exception: " + ex.Message);
+            }
         }
         public override bool WriteWithTimeout(byte[] Data, int Timeout_ms)
         {

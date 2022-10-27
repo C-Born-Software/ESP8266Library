@@ -160,11 +160,11 @@ namespace Hardware.LcdCharacterDisplay
         }
         private void CreateBackLightControlChannel()
         {
-            var controller = PwmController.FromName(SC20260.Timer.Pwm.Controller3.Id);
+            var controller2 = PwmController.FromName(SC20260.Timer.Pwm.Controller2.Id);
             double freq = 10000;
             double DutyCycle = 0.1;
-            controller.SetDesiredFrequency(freq);
-            _backlightLED = controller.OpenChannel(IOMap.BackLight);
+            controller2.SetDesiredFrequency(freq);
+            _backlightLED = controller2.OpenChannel(IOMap.BackLight);
             _backlightLED.SetActiveDutyCyclePercentage(DutyCycle);
             //_backlightLED = new PWM(IOMap.BackLight, freq, DutyCycle, false);
             _backlightLED.Start();

@@ -186,6 +186,16 @@ namespace AnodeMeter.Common
             {
                 res = true;
 
+                for(int i=0; i< arg.Length; ++i)
+                {
+                    char c = arg[i];
+                    if (c < '0' || c > '9')
+                    {
+                        res = false;
+                        break;
+                    }
+                }
+#if false   // The foreach() was causing the compiler to fail!
                 foreach (char c in arg)
                 {
                     if (c < '0' || c > '9')
@@ -194,6 +204,7 @@ namespace AnodeMeter.Common
                         break;
                     }
                 }
+#endif
             }
             return res;
         }

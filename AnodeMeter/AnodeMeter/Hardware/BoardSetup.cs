@@ -64,7 +64,7 @@ namespace AnodeMeter
         */
 
         // PWM Channels
-        public const int BackLight = SC20260.GpioPin.PA3;
+        public const int BackLight = SC20260.Timer.Pwm.Controller2.PA3;
         //public const int GLedFader = SC20260.GpioPin.PB0;
         public const int GLedFader = SC20260.Timer.Pwm.Controller3.PB0;
         //public const int RLedFader = SC20260.GpioPin.PB1;
