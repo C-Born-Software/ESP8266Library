@@ -282,6 +282,8 @@ namespace AnodeMeter.Hardware
 
             DateTime usbStateDebounce = DateTime.MinValue;
 
+#warning //TODO - Return until figure out why USB code is locking us up - DAV
+            return;
 
             //int cnt = 0; //TODO REMOVE DEBUG DAV
             while (true)

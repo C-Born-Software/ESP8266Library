@@ -767,12 +767,31 @@ namespace AnodeMeter.Common
 #if (CREATE_TST_DATA)
                 ForTestingCreateConfigFile(FileDefs.SystemConfigFile);
 #endif
-            return new FileStream(FileDefs.SystemConfigFile, FileMode.Open);
+            FileStream fs = null;
+            try
+            {
+                fs = new FileStream(FileDefs.SystemConfigFile, FileMode.Open);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("OpenConfiguration Error: " + ex.Message);
+            }
+            return fs;
+            //return new FileStream(FileDefs.SystemConfigFile, FileMode.Open);
         }
 
         public Stream OpenDeviceConfiguration()
         {
-            return new FileStream(FileDefs.DeviceConfigFile, FileMode.Open);
+            FileStream fs = null;
+            try
+            {
+                fs = new FileStream(FileDefs.DeviceConfigFile, FileMode.Open);
+            } catch(Exception ex)
+            {
+                Debug.WriteLine("OpenDeviceConfiguration Error: " + ex.Message);
+            }
+            return fs;
+//            return new FileStream(FileDefs.DeviceConfigFile, FileMode.Open);
 
         }
         public bool WriteDeviceID(string DeviceIDInfo)

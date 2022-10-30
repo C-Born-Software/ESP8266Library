@@ -1391,6 +1391,8 @@ namespace AnodeMeter
 
                     if (!_tm.IsSystemTimeOK())
                         _lcd.ShowTimedMessage("Date Incorrect", "Update via USB", 5);
+                    else if(Navigation == null)
+                        _lcd.ShowTimedMessage("Meter Settings", "Unavailable", 5);
                     else
                     {
                         if (dtIgnoreButtonsUntil < DateTime.Now)

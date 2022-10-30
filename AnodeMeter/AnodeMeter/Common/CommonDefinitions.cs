@@ -131,7 +131,7 @@ namespace AnodeMeter
 
     public static class Folders
     {
-        public const string RootFsPath = "SD";
+        public const string RootFsPath = ""; // Was "SD" on EMX and G120 (NetMF);
 
         public const string ConfigPath = RootFsPath + "\\Config";
         public const string SchedPath = RootFsPath + "\\Schedules";

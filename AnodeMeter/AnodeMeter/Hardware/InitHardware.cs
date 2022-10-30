@@ -15,6 +15,7 @@ using GHIElectronics.TinyCLR.IO;
 using GHIElectronics.TinyCLR.Pins;
 using GHIElectronics.TinyCLR.Devices.Adc;
 using GHIElectronics.TinyCLR.Devices.Storage;
+using System.Diagnostics;
 
 namespace AnodeMeter.Hardware
 {
@@ -105,6 +106,7 @@ namespace AnodeMeter.Hardware
 //                _ps = FileSystem.Mount(sd.Hdc);
 //                _ps = new SDCard();
                 Globals.SDCardPresent = true;
+                FileSystem.Unmount(_ps.Hdc);
             }
             catch (Exception ex)
             {
@@ -139,8 +141,11 @@ namespace AnodeMeter.Hardware
             {
                 try
                 {
+//                    Debug.WriteLine("ProtectedFsMount 1");
                     _ps = StorageController.FromName(SC20260.StorageController.SdCard);
+//                    Debug.WriteLine("ProtectedFsMount 2: " + _ps);
                     var drive = FileSystem.Mount(_ps.Hdc);
+//                    Debug.WriteLine("ProtectedFsMount 3: " + drive);
                     //_ps.Mount();
                     //TODO DAV - Don't know why we needed a Sleep here? Will try removing it for now. If things break, replace it or find out why. 18OCT15
                     //System.Threading.Thread.Sleep(1000);
