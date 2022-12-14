@@ -2,15 +2,8 @@
 using System.Collections;
 using System.IO;
 using System.Reflection;
-//using Microsoft.SPOT;
 using System.Threading;
-//using Microsoft.SPOT.Net.NetworkInformation;
-//using Microsoft.SPOT.Hardware;
-//using GHI.Premium.Hardware;
-//using GHI.Premium.IO;
-//using GHI.Hardware;
-//using GHI.Premium.USBClient;
-//using GHI.Premium.System;
+using GHIElectronics.TinyCLR.Devices.UsbClient;
 using AnodeMeter.Common;
 using Hardware.LcdCharacterDisplay;
 using GHIElectronics.TinyCLR.Devices.Gpio;
@@ -18,6 +11,7 @@ using GHIElectronics.TinyCLR.Pins;
 using GHIElectronics.TinyCLR.Devices.Rtc;
 using GHIElectronics.TinyCLR.Native;
 using System.Diagnostics;
+using GHIElectronics.TinyCLR.Devices.Storage;
 #warning //TODO - Add WiFiTransport back in - DAV
 //using PervasiveDigital.Net;
 //using PervasiveDigital.Utilities;
@@ -37,14 +31,6 @@ namespace AnodeMeter
         public const int LCD_Data_6 = SC20260.GpioPin.PF6;
         public const int LCD_Data_7 = SC20260.GpioPin.PF7;
 
-
-       /* public static Cpu.Pin Enable = GHI.Hardware.EMX.Pin.IO20;
-        public static Cpu.Pin LCD_Data_4 = GHI.Hardware.EMX.Pin.IO15;
-        public static Cpu.Pin LCD_Data_5 = GHI.Hardware.EMX.Pin.IO16;
-        public static Cpu.Pin LCD_Data_6 = GHI.Hardware.EMX.Pin.IO17;
-        public static Cpu.Pin LCD_Data_7 = GHI.Hardware.EMX.Pin.IO18;
-       */
-
         // 3.3V Power control
         //public static Cpu.Pin PowerLine = GHI.Hardware.EMX.Pin.IO31;
         public const int PowerLine = SC20260.GpioPin.PH12;
@@ -56,24 +42,12 @@ namespace AnodeMeter
         public const int LeftButton = SC20260.GpioPin.PF10;
         public const int RightButton = SC20260.GpioPin.PF8;
 
-        /*public static Cpu.Pin UpButton = GHI.Hardware.EMX.Pin.IO4;
-        public static Cpu.Pin DownButton = GHI.Hardware.EMX.Pin.IO0;
-        public static Cpu.Pin CentreButton = GHI.Hardware.EMX.Pin.IO30;
-        public static Cpu.Pin LeftButton = GHI.Hardware.EMX.Pin.IO23;
-        public static Cpu.Pin RightButton = GHI.Hardware.EMX.Pin.IO1;
-        */
-
         // PWM Channels
         public const int BackLight = SC20260.Timer.Pwm.Controller2.PA3;
         //public const int GLedFader = SC20260.GpioPin.PB0;
         public const int GLedFader = SC20260.Timer.Pwm.Controller3.PB0;
         //public const int RLedFader = SC20260.GpioPin.PB1;
         public const int RLedFader = SC20260.Timer.Pwm.Controller3.PB1;
-
-        /*public static Cpu.PWMChannel BackLight = Cpu.PWMChannel.PWM_0;
-        public static Cpu.PWMChannel GLedFader = Cpu.PWMChannel.PWM_2;
-        public static Cpu.PWMChannel RLedFader = Cpu.PWMChannel.PWM_3;
-        */
 
         // Analog Inputs
         //public const int VBatt = SC20260.GpioPin.PC0;
@@ -179,6 +153,8 @@ namespace AnodeMeter.Hardware
         private static bool InSetupMode = false;
         private static bool InShutDownMode = false;
         private static bool StillHeld = false;
+
+        private static UsbClientController UsbController;
 
         public enum MenuTypes { Settings = 0, Info, Mode, Support, Wifi, Exit, Last = Exit, First = Settings };
         public enum MenuItems
@@ -662,11 +638,10 @@ namespace AnodeMeter.Hardware
                                             MenuStep = 0;
                                         }
                                         break;
-#warning //TODO - Add DiskDriveMode back in - DAV
-#if false
+
                                     case MenuItems.modeDiskDrive:
-                                        int wtime = 10;
-                                        while (Controller.State != UsbController.PortState.Running)
+                                        int wtime = 15;
+                                        while (ms.DeviceState != DeviceState.Configured) // UsbController.PortState.Running)
                                         {
                                             PrintScreen("Connect USB " + wtime, SpecialLCDCharacter.Tick + " to Exit");
                                             if ((CentreButton.click) || (--wtime <= 0)) break;
@@ -674,11 +649,12 @@ namespace AnodeMeter.Hardware
                                         }
 
                                         PrintScreen("DiskDrive Mode", "Disconnect?  " + SpecialLCDCharacter.Tick);
-                                        while (Controller.State == UsbController.PortState.Running)
+                                        while (ms.DeviceState == DeviceState.Configured)
                                         {
                                             if (CentreButton.click) break;
                                             Thread.Sleep(100);
                                         }
+                                        Debug.WriteLine("Resuming because state = " + ms.DeviceState);
                                         DiskDriveMode(false);
                                         _ds.FileSystemChanged();    // Files may have been changed so re-check
                                         PrintScreen("Device Mode", "Resuming...");
@@ -686,7 +662,7 @@ namespace AnodeMeter.Hardware
                                         MenuItem = 0;
                                         MenuStep = 0;
                                         break;
-#endif
+
                                     default:
                                         MenuItem = 0;
                                         MenuStep = 0;
@@ -1108,12 +1084,11 @@ namespace AnodeMeter.Hardware
 #endif
         // =================End Wifi Test =====================
 
-#warning //TODO - Add MassStorage back in - DAV
- //       static MassStorage ms;
+        static MassStorage ms  = null;
+        static StorageController sd = null;
         static void DiskDriveMode(bool on)
         {
-#warning //TODO - Add MassStorage back in - DAV
-#if false
+
         if (on)
             {
                 try
@@ -1123,44 +1098,85 @@ namespace AnodeMeter.Hardware
                     //ConfigureSystem._ps.UnmountFileSystem();
 
                     //ms = USBClientController.StandardDevices.StartMassStorage();
-                    ms = new MassStorage();
-                    Controller.ActiveDevice = ms;
+                    //ms = new MassStorage(UsbClientController.GetDefault());
+                    //ms.DeviceStateChanged += (a, b) => Debug.WriteLine("Mass Storage changed to " + ms.DeviceState);
+                    //Controller.ActiveDevice = ms;
 
                     // DAV - The following makes us a device with the vendor name AnodeMtr, and the serial number as the product
                     // could be useful, however it then "installs" a new driver instance for each serial number (each meter)
                     //ms.AttachLun(0, ConfigureSystem._ps, "AnodeMtr", "#" + Globals.DeviceID);
 
                     // This way gives us one name, used for all meters
-                    ms.AttachLogicalUnit(ConfigureSystem._ps, 0, "C-Born", "AnodeMeter Drive");
-                    ms.EnableLogicalUnit(0);
+                    // ms.AttachLogicalUnit(ConfigureSystem._ps, 0, "C-Born", "AnodeMeter Drive");
+                    //ms.EnableLogicalUnit(0);
+
+                    // For TinyCLR // TODO DAV Pass constructor with C-Born ID next...
+                    //ms.Enable();
+
+                    StartMs();
                 }
                 catch (Exception ex)
                 {
-                    Debug.Print("Exception: " + ex.Message);
+                    Debug.WriteLine("Exception: " + ex.Message);
                 }
             }
             else
             {
                 try
                 {
-#if (MF_FRAMEWORK_VERSION_V4_3)
-                    ms.DisableLogicalUnit(0);
-                    Controller.ActiveDevice = null;
-#else
-                    ms.DisableLun(0);
-                    USBClientController.Stop(); // 4.2
-#endif
+                    StopMs();
+                    //ms.Disable();
+                    //ms.RemoveLogicalUnit(ConfigureSystem._ps.Hdc);
+                    //ms.Dispose();
+
                     _gw_usb.Resume();
                     _ds.Lock(false);
                 }
                 catch (Exception ex)
                 {
-                    Debug.Print("Exception: " + ex.Message);
+                    Debug.WriteLine("Exception: " + ex.Message);
                 }
             }
-#endif
         }
-
+        // Start Mass Storage
+        static void StartMs()
+        {
+            Debug.WriteLine("StartMs " + ((ms is null) ? "" : "(Skipped)"));
+            if (ms != null) return;
+            var usbclientController = UsbClientController.GetDefault();
+            ms = new MassStorage(usbclientController, new UsbClientSetting()
+            {
+                VendorId = 7071,
+                ProductId = 61442,
+                BcdUsb = 528,
+                BcdDevice = 256,
+                MaxPower = 250,
+                ManufactureName = "C-Born Software Systems",
+                ProductName = "Anodemeter uSD",
+                SerialNumber = "1",
+                InterfaceName = "Mass Storage",
+                Mode = UsbClientMode.MassStorage
+            });
+            //ms = new MassStorage(usbclientController);
+            sd = StorageController.FromName(SC20100.StorageController.SdCard);
+            //ms.DeviceStateChanged += Ms_DeviceStateChanged;
+            ms.AttachLogicalUnit(sd.Hdc);
+            ms.Enable();
+            Debug.WriteLine("MassStorage Started");
+        }
+        // Stop Mass Storage
+        static void StopMs()
+        {
+            Debug.WriteLine("StopMs " + ((ms is null) ? "(Skipped)" : ""));
+            if (ms is null) return;
+            ms.Disable();
+            ms.RemoveLogicalUnit(sd.Hdc);
+            //ms.DeviceStateChanged -= Ms_DeviceStateChanged;
+            ms.Dispose();
+            ms = null;
+            Thread.Sleep(1000);
+            Debug.WriteLine("MassStorage Stopped");
+        }
         private static string WFStat(byte n)
         {
             return Globals.WifiStatus[n] ? "Ok" : "--";
@@ -1267,7 +1283,9 @@ namespace AnodeMeter.Hardware
             {
                 Debug.WriteLine("RTC is Valid");
                 // RTC is good so let's use it
+                long oldticks = DateTime.Now.Ticks;
                 SystemTime.SetTime(rtc.Now);
+                Profile.Rebase(DateTime.Now.Ticks - oldticks);
             }
             else
             {
@@ -1361,39 +1379,6 @@ namespace AnodeMeter.Hardware
                 ds.WriteFactoryDefaults(FactoryDefs);
             }
         }
-#if false //TODO DAV Original, delete after testing new way...
-        public static void SaveSettingsToSD(Common.DataStore ds)
-        {
-            if (ds != null)
-            {
-                string BackLight = "BackLight" + ',' + Globals.BackLightLevel.ToString() + '\r';
-                string GreenLed = "GreenLed" + ',' + Globals.GLedBright.ToString() + '\r';
-                string RedLed = "RedLed" + ',' + Globals.RLedBright.ToString() + '\r';
-                string LcdBias = "LcdBias" + ',' + Globals.LCDBiasPC.ToString() + '\r';
-                string Serial = "Serial" + ',' + Globals.Serial.ToString() + '\r';
-                string MeasMode = "MeasMode" + ',' + Globals.MeasurementModeIndex.ToString() + '\r';
-                string LogRawData = "LogRawData" + ',' + Globals.LogRawData.ToString() + '\r';
-
-                string FactoryDefs = BackLight + GreenLed + RedLed + LcdBias + Serial + MeasMode + LogRawData;
-
-                if (Globals.SleepOverride)
-                {
-                    FactoryDefs += '\r' +
-                        "SleepDelay" + ',' + Globals.SleepDelay + ',' + Globals.WakeDelay + '\r'
-                        + "ConnectedSleepDelay" + ',' + Globals.ConnectedSleepDelay + ',' + Globals.ConnectedWakeDelay + '\r';
-                }
-                if (Globals.WifiSSID.Length > 0)
-                {
-                    FactoryDefs += "Wifi " + Globals.WifiSSID + ' ' + Globals.WifiPWD + '\r';
-                }
-                if (Globals.Gateway.Length > 0)
-                {
-                    FactoryDefs += "Gateway " + Globals.Gateway + '\r';
-                }
-                ds.WriteFactoryDefaults(FactoryDefs);
-            }
-        }
-#endif
 
         private static Common.LcdDisplay.CursorPosition Display1 = new Common.LcdDisplay.CursorPosition(0, 0);
         private static Common.LcdDisplay.CursorPosition Display2 = new Common.LcdDisplay.CursorPosition(1, 0);
@@ -1453,7 +1438,9 @@ namespace AnodeMeter.Hardware
             _ds = ds;
             _gw_usb = gw_usb;
 #warning //TODO - Add WiFi back in - DAV
-//            _gw_wifi = gw_wifi;
+            //            _gw_wifi = gw_wifi;
+
+            UsbController = UsbClientController.GetDefault();
 
             HardwareButton[] Buttons = _amb.GetButtons();
             UpButton = Buttons[0];

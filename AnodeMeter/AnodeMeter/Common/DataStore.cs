@@ -574,10 +574,13 @@ namespace AnodeMeter.Common
 
             try
             {
+                Debug.WriteLine("GetSHA1Hash with " + dataToHash.Length);
                 var sha1 = SHA1.Create();
+                Debug.WriteLine("GetSHA1Hash point 2");
                 hashSHA = sha1.ComputeHash(dataToHash);
-//                CryptokiDigest di = new CryptokiDigest("", new Mechanism(MechanismType.SHA_1), 160);
-  //              hashSHA = di.Digest(dataToHash, 0, dataToHash.Length);
+                Debug.WriteLine("GetSHA1Hash point 3 with " + hashSHA.Length);
+                //                CryptokiDigest di = new CryptokiDigest("", new Mechanism(MechanismType.SHA_1), 160);
+                //              hashSHA = di.Digest(dataToHash, 0, dataToHash.Length);
             }
             catch (Exception ex)
             {
