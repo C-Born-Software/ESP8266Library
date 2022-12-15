@@ -15,7 +15,6 @@ namespace AnodeMeter.Hardware
     {
         private const int HeaderSize = 23;
         private static RawDevice.RawStream _usbStream = null;
-        //private static RawDevice _usbDevice = null;
         private Thread _pollUsb = null;
         static bool _bWritePending;
 
@@ -36,27 +35,11 @@ namespace AnodeMeter.Hardware
             InterfaceName = "SitCore Based Anode Meter"
         };
 
-        //UsbController = UsbClientController.GetDefault();
-
-        //WinUsb winUsb = new WinUsb(UsbClientController.GetDefault(), usbClientSetting);
-  
-
         DeviceState _usbState = DeviceState.Default;
-        //UsbController.PortState _usbState = UsbController.PortState.Stopped;
 
         public UsbTransport()
         {
-            try
-            {
-                //UsbController = UsbClientController.GetDefault();
-                //winUsb = new WinUsb(UsbController, usbClientSetting);
-                //winUsb.DeviceStateChanged += (a, b) => Debug.WriteLine("Connection changed to " + winUsb.DeviceState);
 
-                //StartWinUsb(); (Started in Init() )
-            } catch(Exception ex)
-            {
-                Debug.WriteLine("UsbTransport Exception: " + ex.Message);
-            }
         }
         // Start WinUSB
         static void StartWinUsb()
@@ -80,7 +63,7 @@ namespace AnodeMeter.Hardware
             //winUsb.DataReceived -= Usb_DataReceived;
             winUsb.Dispose();
             winUsb = null;
-            Thread.Sleep(1000);
+            Thread.Sleep(200);
             Debug.WriteLine("WinUsb Stopped");
         }
         public override bool WriteWithTimeout(byte[] Data, int Timeout_ms)
@@ -108,12 +91,9 @@ namespace AnodeMeter.Hardware
                 _pollUsb = null;
             }
             StopWinUsb();
-//            winUsb.Disable();
-//            winUsb.Dispose();
-            //Controller.ActiveDevice = null;
-            //_usbDevice = null;
+
             _usbStream = null;
-            _usbState = DeviceState.Default; // UsbController.PortState.Stopped;
+            _usbState = DeviceState.Default;
             base.Close();
         }
 
@@ -137,8 +117,6 @@ namespace AnodeMeter.Hardware
 
                 StartWinUsb();
                 _usbStream = winUsb.Stream;
-                // All done, you can start the device now
-                //winUsb.Enable();
 
                 _pollUsb = new Thread(PollUSB);
                 _pollUsb.Priority = ThreadPriority.AboveNormal;
@@ -163,22 +141,19 @@ namespace AnodeMeter.Hardware
             EventSuspend.Reset();
             bSuspend = true;
             EventSuspend.WaitOne(2000, true);
-            //Controller.ActiveDevice = null;
+
             Logging.LockOutput();
 
             StopWinUsb();
-//            winUsb.Disable();
-//            winUsb.Dispose();
+
             FileSystem.Unmount(ConfigureSystem._ps.Hdc);
             ConfigureSystem._ps.Close();
             ConfigureSystem._ps.Dispose();
         }
         public override void Resume()
         {
-            //USBClientController.Start(_usbDevice);
             StartWinUsb();
-//            winUsb.Enable();
-//            Controller.ActiveDevice = _usbDevice;
+
             try
             {
                 ConfigureSystem.ProtectedFsMount();
@@ -237,8 +212,6 @@ namespace AnodeMeter.Hardware
                 //Debug.Print("PollUSB: " + ++cnt); //TODO REMOVE DEBUG DAV
                 try
                 {
-
-                    //_usbState = Controller.State;
                     _usbState = winUsb.DeviceState;
 
                     //Debug.Print("USB State: " + _usbState); ////TODO REMOVE DEBUG DAV 
@@ -248,7 +221,6 @@ namespace AnodeMeter.Hardware
                         if (usbStateDebounce == DateTime.MinValue)
                             usbStateDebounce = DateTime.Now + new TimeSpan(1 * TimeSpan.TicksPerSecond);
 
-                        //if (_usbState != UsbController.PortState.Running || usbStateDebounce < DateTime.Now)
                         if (_usbState != DeviceState.Configured || usbStateDebounce < DateTime.Now)
                         {
                             // Issue state change event
@@ -263,10 +235,6 @@ namespace AnodeMeter.Hardware
                     {
                         if (usbWasAlreadyRunning)
                         {
-                            //USBClientController.Stop();           // TODO DAV Can we stop by setting ActiveDevice to null or 0?
-                            //USBClientController.Start(_usbDevice);
-#warning //TODO - Fix next line
-//                            Controller.ActiveDevice = _usbDevice;
                             usbWasAlreadyRunning = false;
                         }
                         Thread.Sleep(1200);
@@ -382,39 +350,11 @@ namespace AnodeMeter.Hardware
                                 if (_bWritePending)
                                 {
                                     _bWritePending = false;
-#if true
-//#if (MF_FRAMEWORK_VERSION_V4_3)
+
                                     // In 4.3 Write is a void, so must always succeed?? DAV
                                     // GHI says: Write loops internally until all of the bytes have been written or the amount of time specified by WriteTimeout has passed
                                      _usbStream.Write(_txBuff, 0, _txBuff.Length);
                                      _txOpCompleted = true;
-#else
-                                    bytesWritten = _usbStream.Write(_txBuff, 0, _txBuff.Length);
-
-                                    if (bytesWritten != _txBuff.Length)
-                                    {
-                                        string currentCallStack = "";
-                                        try
-                                        {
-                                            throw new Exception("USB write incomplete");
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            currentCallStack = ex.StackTrace;
-                                        }
-
-                                        Logging.IssueEvent(Logging.ErrSeverity.Warning, "UsbTransport::PollUSB", "USB Data Send incomplete: Requested=" +
-                                            _txBuff.Length.ToString() + ", Sent=" + bytesWritten.ToString() + ". Usb tx err. Call Stack: " + currentCallStack, "");
-
-                                        IssueEvent(ConnectionState.Detached);
-
-                                        Thread.Sleep(500);
-                                    }
-                                    else
-                                    {
-                                        _txOpCompleted = true;
-                                    }
-#endif
                                 }
                                 else
                                     Thread.Sleep(500);

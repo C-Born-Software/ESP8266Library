@@ -54,13 +54,7 @@ namespace AnodeMeter.Hardware
             //    PowerState.RebootDevice(false, 1000);
 #endif
 #endif
-            // Determine our platform, EMX or G120
- /*           if (IOMap.IsG120())
-            {
-                IOMap.SetG120();
-                Globals.G120 = true;
-            }
- */
+
             Profile.DebugTime("IO Mapped"); //TODO DAV DEBUG
             // We do an early read of the analog input here to give it time to settle
             // Without this our initial battery reads (on EMX at least) come in at 5.1 when it is 4.2, so clearly some analog problems in HW or SDK!

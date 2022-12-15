@@ -99,6 +99,7 @@ namespace AnodeMeter
             //Debug.Print("At " + sWhere + " Time " + tUp/10000 + " Delta " + tLast/10000 + "mS Elapsed " + tTotUpTime/10000);
             Debug.WriteLine("At " + sWhere + " Time " + tTotUpTime / 10000 + "mS Delta " + tLast / 10000 + "mS");
         }
+        [Conditional("PROFILE")]
         public static void Rebase(long tickoffset)
         {
             dbgBaseTime += tickoffset;

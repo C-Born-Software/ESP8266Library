@@ -3,15 +3,18 @@ using System.Collections;
 using System.IO;
 using System.Reflection;
 using System.Threading;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using GHIElectronics.TinyCLR.Devices.UsbClient;
-using AnodeMeter.Common;
 using Hardware.LcdCharacterDisplay;
 using GHIElectronics.TinyCLR.Devices.Gpio;
 using GHIElectronics.TinyCLR.Pins;
 using GHIElectronics.TinyCLR.Devices.Rtc;
 using GHIElectronics.TinyCLR.Native;
-using System.Diagnostics;
 using GHIElectronics.TinyCLR.Devices.Storage;
+using AnodeMeter.Common;
+using GHIElectronics.TinyCLR.IO;
+using GHIElectronics.TinyCLR.Update;
 #warning //TODO - Add WiFiTransport back in - DAV
 //using PervasiveDigital.Net;
 //using PervasiveDigital.Utilities;
@@ -44,6 +47,7 @@ namespace AnodeMeter
 
         // PWM Channels
         public const int BackLight = SC20260.Timer.Pwm.Controller2.PA3;
+        public const string LedFaderController = SC20260.Timer.Pwm.Controller3.Id;
         //public const int GLedFader = SC20260.GpioPin.PB0;
         public const int GLedFader = SC20260.Timer.Pwm.Controller3.PB0;
         //public const int RLedFader = SC20260.GpioPin.PB1;
@@ -68,9 +72,10 @@ namespace AnodeMeter
         public const int WiFiProgramPin = SC20260.GpioPin.PI4;
         public const string WiFiComPort = "COM3";
 
+#if false
         public static void SetG120()
         {
-#if false
+
             // Override with G120 Mappings where necessary
 
             // LCD Display
@@ -102,33 +107,8 @@ namespace AnodeMeter
 
             // Analog Outputs
             LCDBias = Cpu.AnalogOutputChannel.ANALOG_OUTPUT_0;
-#endif
         }
-            public static bool IsG120()
-        {
-            return false;
-            // this is GHI Gus's suggestion. Clock is 18000000 on the EMX, and 120000000 on the G120 (currently)
-            //return (Cpu.SystemClock != 18000000);
-            //return (Microsoft.SPOT.Hardware.Cpu.SystemClock == 18000000) ? false : true;
-
-#if false // Works, but get an exception in GC (Garbage collection) when disposing the IO Pin
-            bool b = false;
-
-            return false;
-
-            try
-            {
-                OutputPort p = new OutputPort((Cpu.Pin)GHI.Hardware.G120.Pin.P1_19, false);
-                b = true;
-                p.Dispose();
-            }
-            catch (Exception ex)
-            {
-                b = false;
-            }
-            return b;
 #endif
-        }
     }
 }
 
@@ -737,8 +717,7 @@ namespace AnodeMeter.Hardware
                                             break;
                                     }
                                     break;
-#warning //TODO - Add IFU back in - DAV
-#if false
+
                                 case MenuItems.supportIFU:  // Support - IFU (In Field Update)
                                     switch (MenuStep)
                                     {
@@ -792,7 +771,7 @@ namespace AnodeMeter.Hardware
                                                 catch (Exception e)
                                                 {
                                                     PrintScreen("Update Error", "");
-                                                    Debug.Print("Update Error: " + e.Message);
+                                                    Debug.WriteLine("Update Error: " + e.Message);
                                                     Thread.Sleep(1000);
                                                     MenuItem = 0;
                                                     MenuStep = 0;
@@ -808,7 +787,7 @@ namespace AnodeMeter.Hardware
                                             break;
                                     }
                                     break;
-#endif
+
                                 case MenuItems.supportEraseID:
                                     switch (MenuStep)
                                     {
@@ -1343,6 +1322,7 @@ namespace AnodeMeter.Hardware
                 }
                 catch (Exception ex)
                 {
+                    Debug.WriteLine("Exception Reading Factory Defaults: " + ex.Message);
                 }
                 UpdateOrAdd(ref Records, "BackLight", Globals.BackLightLevel.ToString(), ref extras);
                 UpdateOrAdd(ref Records, "GreenLed", Globals.GLedBright.ToString(), ref extras);
@@ -1542,142 +1522,6 @@ namespace AnodeMeter.Hardware
 #endif
     }
 
-#if false // Moved to separate file
-    public class FlashSettings
-    {
-        private static ExtendedWeakReference s_FlashSettings;
-        private static class TypeUniqueToOurAppV2 { }
-
-        [Serializable]
-        public sealed class FactoryDefaults
-        {
-            public byte LCDBiasPC = GlobalConsts.FACTORY_DEFAULT_LCD_BIAS;         // This needs to be set correctly so we can see the display
-            public byte GLedBright = 25;     // Green LED Brightness
-            public byte RLedBright = 25;     // Red LED Brighness
-            public byte BackLightLevel = 35; // 35 Percent backlight by default 
-            public UInt16 Serial = 0;         // Serial number (written on PCB/Box sticker, digits only)
-            public byte MeasMode = 0;
-        }
-
-        public static void OnBoot()
-        {
-            s_FlashSettings = ExtendedWeakReference.RecoverOrCreate(typeof(TypeUniqueToOurAppV2), 0, ExtendedWeakReference.c_SurvivePowerdown);
-            s_FlashSettings.Priority = (Int32)ExtendedWeakReference.PriorityLevel.Important; // Or System??
-            FactoryDefaults factoryDefaults = (FactoryDefaults)s_FlashSettings.Target;
-            if (factoryDefaults == null)
-            {
-                // Wasn't found - create new one
-                factoryDefaults = new FactoryDefaults();
-            }
-            else
-            {
-                // found our defaults
-                Globals.LCDBiasPC = factoryDefaults.LCDBiasPC;
-                Globals.BackLightLevel = factoryDefaults.BackLightLevel;
-                Globals.GLedBright = factoryDefaults.GLedBright;
-                Globals.RLedBright = factoryDefaults.RLedBright;
-                Globals.Serial = factoryDefaults.Serial;
-                Globals.MeasurementModeIndex = factoryDefaults.MeasMode;
-            }
-
-            //s_FlashSettings.Target = factoryDefaults; // Writing settings?
-        }
-
-        public static void Reload()
-        {
-            FactoryDefaults factoryDefaults = (FactoryDefaults)s_FlashSettings.Target;
-
-            if (factoryDefaults != null)
-            {
-                // Load our defaults
-                Globals.LCDBiasPC = factoryDefaults.LCDBiasPC;
-                Globals.BackLightLevel = factoryDefaults.BackLightLevel;
-                Globals.GLedBright = factoryDefaults.GLedBright;
-                Globals.RLedBright = factoryDefaults.RLedBright;
-                Globals.Serial = factoryDefaults.Serial;
-                Globals.MeasurementModeIndex = factoryDefaults.MeasMode;
-            }
-        }
-
-        public static void SaveSettings()
-        {
-            FactoryDefaults factoryDefaults = (FactoryDefaults)s_FlashSettings.Target;
-
-            if (factoryDefaults == null)
-            {
-                // Wasn't found - create new one
-                factoryDefaults = new FactoryDefaults();
-            }
-
-            // Install current values
-
-            factoryDefaults.LCDBiasPC = Globals.LCDBiasPC;
-            factoryDefaults.BackLightLevel = Globals.BackLightLevel;
-            factoryDefaults.GLedBright = Globals.GLedBright;
-            factoryDefaults.RLedBright = Globals.RLedBright;
-            factoryDefaults.Serial = Globals.Serial;
-            factoryDefaults.MeasMode = (byte)Globals.MeasurementModeIndex;
-
-            s_FlashSettings.Target = factoryDefaults; // Write settings
-            //GHI.Premium.System.Util.FlushExtendedWeakReferences();
-            ExtendedWeakReference.FlushAll();
-        }
-    }
-
-    public class FlashWifi
-    {
-        private static ExtendedWeakReference s_FlashWifi;
-        private static class TypeUniqueToOurAppW1 { }
-
-        [Serializable]
-        public sealed class WifiHints
-        {
-            public byte AP_Index = 0;
-            public byte Server_Index = 0;
-        }
-
-        public static void OnBoot()
-        {
-            s_FlashWifi = ExtendedWeakReference.RecoverOrCreate(typeof(TypeUniqueToOurAppW1), 0, ExtendedWeakReference.c_SurvivePowerdown);
-            s_FlashWifi.Priority = (Int32)ExtendedWeakReference.PriorityLevel.Important; // Or System??
-            WifiHints WifiHints = (WifiHints)s_FlashWifi.Target;
-            if (WifiHints == null)
-            {
-                // Wasn't found - create new one
-                WifiHints = new WifiHints();
-            }
-            else
-            {
-                Globals.Wifi_AP_Index = WifiHints.AP_Index;
-                Globals.Wifi_Server_Index = WifiHints.Server_Index;
-            }
-        }
-
-        public static void Reload()
-        {
-            WifiHints WifiHints = (WifiHints)s_FlashWifi.Target;
-
-            if (WifiHints != null)
-            {
-                Globals.Wifi_AP_Index = WifiHints.AP_Index;
-                Globals.Wifi_Server_Index = WifiHints.Server_Index;
-            }
-        }
-
-        public static void SaveSettings()
-        {
-            WifiHints WifiHints = (WifiHints)s_FlashWifi.Target;
-
-            if (WifiHints == null)
-                WifiHints = new WifiHints();
-
-            WifiHints.AP_Index = Globals.Wifi_AP_Index;
-            WifiHints.Server_Index = Globals.Wifi_Server_Index;
-            s_FlashWifi.Target = WifiHints; // Write settings
-            ExtendedWeakReference.FlushAll();
-        }
-    }
-#endif
     /* =========== In Field Update Strategy =========
      * 
      * We have a top level directory "Update" (/SD/Update) with a subdirectory for each hardware type (Update\EMX and Update\G120)
@@ -1704,8 +1548,7 @@ namespace AnodeMeter.Hardware
      * DAV  9AUG13
      *      10AUG13 Updated to require subdirectory for firmware files)
     */
-#warning //TODO - Wite InFieldUpdate for SitCore - DAV
-#if false
+
     public class FieldUpdate
     {
         static string Path;
@@ -1713,8 +1556,6 @@ namespace AnodeMeter.Hardware
 
         static string AppName = null;
         static string fw = null;
-        static string fw2 = null;
-        static string config = null;
 
         public static bool HaveUpdate = false;
         public static bool NeedFWUpdate = true;
@@ -1722,14 +1563,25 @@ namespace AnodeMeter.Hardware
 
         public static void CheckForUpdates()
         {
-            string[] Files;
-            Path = @"SD\Updates\" + (Globals.G120 ? "G120" : "EMX") + @"\";
-            AppBase = "app_" + SystemInfo.Version.ToString();
+            //string s = DeviceInformation.DeviceName + " Version: " + DeviceInformation.Version.ToString();
+            //Debug.WriteLine(s);
+            ulong vn = DeviceInformation.Version;
+            var v1 = vn >> 48;
+            var v2 = (vn >> 32) & 0x0ffff;
+            var v3 = (vn >> 16) & 0x0ffff;
+            var v4 = vn & 0x0ffff;
+            Debug.WriteLine("Version: " + v1 + "." + v2 + "." + v3 + "." + v4);
 
+            string[] Files;
+            //Path = @"SD\Updates\" + (Globals.G120 ? "G120" : "EMX") + @"\";
+            Path = @"\Updates\" + "SC20" + @"\";
+            //AppBase = "app_" + SystemInfo.Version.ToString();
+            //AppBase = "app_" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            AppBase = "app_" + v1 + "." + v2 + "." + v3 + "." + v4;
             int AppBaseLen = AppBase.Length;
 
             HaveFW = false;
-            fw = fw2 = config = null;
+            fw = null;
 
             try
             {
@@ -1744,7 +1596,7 @@ namespace AnodeMeter.Hardware
                             foreach (string file in Files)
                             {
                                 string fn = file.ExtractFileNameFromFullPath();
-                                if (MatchHexFile(fn, AppBase))
+                                if (MatchFile(fn, AppBase, ".tca"))
                                 {
                                     // Found a version matched application
                                     AppName = fn;
@@ -1757,7 +1609,7 @@ namespace AnodeMeter.Hardware
                             foreach (string file in Files)
                             {
                                 string fn = file.ExtractFileNameFromFullPath();
-                                if (MatchHexFile(fn, "App_"))
+                                if (MatchFile(fn, "App_", ".tca"))
                                 {
                                     // Found a non version matched application
                                     AppName = fn;
@@ -1768,22 +1620,20 @@ namespace AnodeMeter.Hardware
                                     if (dirs.Length > 1)
                                     {
                                         string d = dirs[1];
-                                        if (d.Right(4).ToLower() == ".hex")
+                                        if (d.Right(4).ToLower() == ".tca")
                                             d = d.Left(d.Length - 4);
                                         string sdkpath = Path + "SDK_" + d + @"\";
                                         if (Directory.Exists(sdkpath))
                                         {
-                                            fw = sdkpath + "Firmware.hex";
-                                            fw2 = sdkpath + "Firmware2.hex";
-                                            config = sdkpath + "Config.hex";
+                                            fw = sdkpath + "Firmware.ghi";
 
-                                            if (File.Exists(fw) && File.Exists(fw2) && File.Exists(config))
+                                            if (File.Exists(fw)) // && File.Exists(fw2) && File.Exists(config))
                                             {
                                                 HaveFW = true;
                                                 return;
                                             }
                                             else
-                                                fw = fw2 = config = null;
+                                                fw = null;
                                         }
                                     }
                                 }
@@ -1795,21 +1645,26 @@ namespace AnodeMeter.Hardware
             catch (Exception e)
             {
                 //throw new Exception("Fail when updating data " + e.ToString());
-                Debug.Print("Exception checking for Updates: " + e.Message);
+                Debug.Write("Exception checking for Updates: " + e.Message);
                 HaveUpdate = false;
             }
         }
 
         static bool MatchHexFile(string fn, string head)
         {
-            if ((fn.Left(head.Length).ToLower() == head.ToLower()) && (fn.Right(4).ToLower() == ".hex"))
+            return MatchFile(fn, head, ".hex");
+        }
+        static bool MatchFile(string fn, string head, string tail)
+        {
+            if ((fn.Left(head.Length).ToLower() == head.ToLower()) && (fn.Right(4).ToLower() == tail.ToLower()))
                 return true;
             else
                 return false;
         }
-
         public static bool Update()
         {
+            var appKey = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; // your key, assumming they are all zero as example.
+
             try
             {
                 if (HaveUpdate && !NeedFWUpdate)
@@ -1817,1449 +1672,80 @@ namespace AnodeMeter.Hardware
                     // App matches current firmware. Just load new application
                     BoardSetup.PrintScreen("Loading App...", "");
                     Thread.Sleep(400);
-                    InFieldUpdate.Initialize(InFieldUpdate.Types.Application);
-                    LoadDataFromSD(Path + AppName, InFieldUpdate.Types.Application);
+                    var filestreamApp = new FileStream(Path + AppName, FileMode.Open);
+                    var updater = new ApplicationUpdate(filestreamApp, appKey);
+                    var applicationVersion = updater.Verify();
+                    //updater.ActivityPin = indicatorPin; // optional
+                    updater.FlashAndReset();
+
                 }
                 else if (HaveUpdate && HaveFW)
                 {
                     // We need to load in new firmware, config (??) and application
                     BoardSetup.PrintScreen("Loading App.", "+ Firmware");
                     Thread.Sleep(400);
-                    InFieldUpdate.Initialize(InFieldUpdate.Types.Configuration |
-                                    InFieldUpdate.Types.Application |
-                                    InFieldUpdate.Types.Firmware);
-                    BoardSetup.PrintScreen("Loading: 1/4", "Firmware");
-                    Thread.Sleep(400);
-                    LoadDataFromSD(fw, InFieldUpdate.Types.Firmware);          // Load in the 1st firmware file 
 
-                    BoardSetup.PrintScreen("Loading: 2/4", "Firmware2");
-                    Thread.Sleep(400);
-                    LoadDataFromSD(fw2, InFieldUpdate.Types.Firmware);         // Load in the 2nd firmware file
+                    // Would be nice to flash green LED, but need to wrest control back from PhysicalLED
+                    // Maybe later - for now just toggle a random unused Gpio Pin...
+                    var indicatorPin = GpioController.GetDefault().OpenPin(SC20260.GpioPin.PJ4);
+                    var updater = new InFieldUpdate() { ActivityPin = indicatorPin };
 
-                    BoardSetup.PrintScreen("Loading: 3/4", "Config");
-                    Thread.Sleep(400);
-                    LoadDataFromSD(config, InFieldUpdate.Types.Configuration);        // Load in the Configuration file
+                    var dataChunk = new byte[1 * 1024]; // must be multiple of 1K
 
-                    BoardSetup.PrintScreen("Loading: 4/4", "Application");
-                    Thread.Sleep(400);
-                    LoadDataFromSD(Path + AppName, InFieldUpdate.Types.Application);   // Load new application
-                }
-                else
-                    // Can't load. Shouldn't have been called!
-                    return false;
+                    var filestreamApp = new FileStream(Path + AppName, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    var filestreamFw = new FileStream(fw, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-                // Can we update? (Perhaps there are file errors or something?)
-                //if (SystemUpdate.CanUpdate)
-                //{
-                BoardSetup.PrintScreen("Saving and", "Rebooting...");
-                Thread.Sleep(400);
-                // If we can update, tell the firmware to copy the new files to flash, and restart.
-                // After this restart, your newly loaded firmware files, configuration, and application will be on the board.
-                InFieldUpdate.FlashAndReset();
-                //}
-            }
-            catch (Exception e)
-            {
-                Debug.Print("Fail when updating data " + e.ToString());
-                return false;
-            }
-            return true;
-        }
+                    // Buffer application
+                    var idxApp = 0;
 
-        private static SDCard _pse = ConfigureSystem._ps;
-        private static FileStream _fs;
-
-        // Loads the passed in file from the SD card into memory.
-        static void LoadDataFromSD(string filename, InFieldUpdate.Types ifutype)
-        {
-            const int BLOCK_SIZE = 10 * 1024;
-
-            int rest;
-            byte[] hex;
-            long len;
-            int blocknum;
-
-            _fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read);
-            len = _fs.Length;
-
-            blocknum = (int)len / BLOCK_SIZE;
-            rest = (int)len % BLOCK_SIZE;
-            hex = new byte[BLOCK_SIZE];
-
-            for (int i = 0; i < blocknum; i++)
-            {
-                _fs.Read(hex, 0, BLOCK_SIZE);
-
-                InFieldUpdate.Load(ifutype, hex, BLOCK_SIZE);
-
-                Debug.Print("Loading file " + filename + ", block " + i + "/" + blocknum);
-            }
-
-            _fs.Read(hex, 0, rest);
-            InFieldUpdate.Load(ifutype, hex, rest);
-
-            _fs.Close();
-            _fs.Dispose();
-
-            _fs = null;
-            hex = null;
-
-            Debug.GC(true);
-        }
-    }
-#endif
-}
-
-#if false // EMX Version
-namespace AnodeMeter.Hardware
-{
-    public class BoardSetup
-    {
-        private static Common.DataStore _ds;
-        private static Common.LcdDisplay _lcd;
-        private static Hardware.PhysicalButtons _amb;
-        //private static Hardware.PhysicalLED _led;
-        private static Common.LED _led;
-        private static Common.BatteryCharge _bc;
-        private static BinaryTransport _gw;
-        private static TristatePort PowerLine = null;
-
-        private static HardwareButton LeftButton, RightButton, UpButton, DownButton, CentreButton;
-
-        private static bool InSetupMode = false;
-        private static bool InShutDownMode = false;
-        private static bool StillHeld = false;
-
-        public enum MenuTypes { Settings = 0, Info, Mode, Support, Exit, Last = Exit, First = Settings };
-        public enum MenuItems
-        {
-            setTopLevel = 0, setBackLight, setGreenLED, setRedLED, setLCDBias, setClock, setMeasMode, setLogRawData, setSave, setLoad, setAutoScan = 100,
-            infoTopLevel = 0, infoBatt, infoInput, infoFirmware, infoBuiltOn, infoSDCard, infoSerial,
-            modeTopLevel = 0, modeDiskDrive = 2,
-            supportTopLevel = 0, supportPowerOff, supportBattTest, supportIFU, supportEraseID, supporSetSerial = 100,
-            exitTopLevel = 0
-        };
-
-        private static MenuTypes MenuType = MenuTypes.Settings;
-        private static MenuItems MenuItem = MenuItems.setTopLevel;
-        private static int MenuStep = 0;
-
-        private double Ain0 = 0.0;
-        private double AvAin0 = 0.0;
-
-        private static Globals.PowerStates LastPowerState = Globals.PowerStates.Normal;
-
-        public void SetAnalogReading(double ain)
-        {
-            Ain0 = ain;
-        }
-
-        struct dtunit { public int val; public byte col; public byte row; public byte width; public int min; public int max; public dtunit(int Val, byte Col, byte Row, byte Width, int Min, int Max) { val = Val; col = Col; row = Row; width = Width; min = Min; max = Max; } };
-
-        dtunit[] dtunits = new dtunit[] {
-            new dtunit (0, 6, 0, 4, 2012, 2100 ),   // Year
-            new dtunit (0, 11, 0, 2, 1, 12 ),       // Month
-            new dtunit (0, 14, 0, 2, 1, 31 ),       // Day
-            new dtunit (0, 6, 1, 2, 0, 23 ),        // Hour
-            new dtunit (0, 9, 1, 2, 1, 59 ),        // Minute
-            new dtunit (0, 12, 1, 2, 1, 59 ),       // Second
-        };
-
-        private void BoardSetupWorker()
-        {
-#if false
-            // Battery Voltage x 0.5 (divider on input) 10 bit (0-1023) ADC, full scale 3.3V 
-            AnalogIn VBatt = new AnalogIn(AnalogIn.Pin.Ain1);
-            AnalogIn VRef2p5 = new AnalogIn(AnalogIn.Pin.Ain5); 
-#endif
-
-
-#if false
-            LeftButton = new Button((Cpu.Pin)GHI.Hardware.EMX.Pin.IO23, 'L');
-            RightButton = new Button((Cpu.Pin)GHI.Hardware.EMX.Pin.IO1, 'R');
-            UpButton = new Button((Cpu.Pin)GHI.Hardware.EMX.Pin.IO4, 'U');
-            DownButton = new Button((Cpu.Pin)GHI.Hardware.EMX.Pin.IO0, 'D');
-            CentreButton = new Button((Cpu.Pin)GHI.Hardware.EMX.Pin.IO30, 'S');
-
-            HardwareButton[] Buttons = _amb.GetButtons();
-            UpButton = Buttons[0];
-            DownButton = Buttons[1];
-            LeftButton = Buttons[2];
-            RightButton = Buttons[3];
-            CentreButton = Buttons[4];
-#endif
-            float BattVolts = 0.0F;
-            float AvBattVolts = 0.0F;
-            float vRef = 0.0f;
-            float V3p3 = 3.3f; // Calculated 3.3V volt rail based on 2.5V reference
-
-            // If Left button held on startup, scan LCD Bias until user clicks to say they can see it
-            //            LeftButton.Scan();
-            if (LeftButton.bootstate)
-            {
-                MenuType = MenuTypes.Settings;   // Set Defaults
-                MenuItem = MenuItems.setAutoScan; // AutoScan Bias Mode
-                MenuStep = 0;
-                EnterSetupMode(true);
-            }
-
-            CheckRTC(); // Set RTC to build date if invalid
-            Int16 mtDir = 1;
-
-            while (true)
-            {
-
-                try
-                {
-                    //string BtnState = "";
-
-                    if (!InSetupMode)
+                    while (idxApp < filestreamApp.Length)
                     {
-                        Thread.Sleep(500);
-                        continue;
+                        var count = filestreamApp.Read(dataChunk, 0, dataChunk.Length);
+                        idxApp += updater.LoadApplicationChunk(dataChunk, 0, count);
                     }
 
-                    if (UpButton.held && DownButton.held)
+                    // Buffer firmware
+                    var idxFirmware = 0;
+                    while (idxFirmware < filestreamFw.Length)
                     {
-                        if (!StillHeld)
-                        {
-                            StillHeld = true;
-                            ExitSetup(true);
-                        }
-                    }
-                    else
-                        StillHeld = false;
+                        var count = filestreamFw.Read(dataChunk, 0, dataChunk.Length);
 
-
-                    {
-                        if (DownButton.click)
-                        {
-                            ++MenuItem;
-                            MenuStep = 0;
-                        }
-                        if (UpButton.click)
-                        {
-                            --MenuItem;
-                            MenuStep = 0;
-                        }
-                    }
-                    if (MenuItem == 0)
-                    {
-                        if (RightButton.click)
-                        {
-                            mtDir = 1;
-                            ++MenuType;
-                            MenuStep = 0;
-                        }
-                        else if (LeftButton.click)
-                        {
-                            mtDir = -1;
-                            --MenuType;
-                            if (MenuType < MenuTypes.First)
-                                MenuType = MenuTypes.Last;
-                            MenuStep = 0;
-                        }
+                        idxFirmware += updater.LoadFirmwareChunk(dataChunk, 0, count);
                     }
 
-#if true
-                    if (_bc != null)
-                    {
-                        //BattVolts = ((Hardware.PhysicalBatteryCharge)_bc).BattVolts;
-                        //AvBattVolts = ((Hardware.PhysicalBatteryCharge)_bc).AvBattVolts;
-                        BattVolts = Globals.gBattVolts;
-                        AvBattVolts = Globals.gAvBattVolts;
-                        vRef = ((Hardware.PhysicalBatteryCharge)_bc).vRef;
-                        V3p3 = ((Hardware.PhysicalBatteryCharge)_bc).V3p3;
-                    }
-#else
-                BattVolts = (float)(((float)VBatt.Read()) * 2 * 3.3) / 1024;   // Read from VBatt divider connected ADC (10-bit)
-                vRef = (float)(((float)VRef2p5.Read() * 3.3) / 1024);
+                    //Load key
+                    updater.LoadApplicationKey(appKey);
 
-                if ((vRef > 2) && (vRef < 3))
-                {
-                    float scale = 2.5f / vRef;
-                    V3p3 = 3.3f * scale; // Calculate 3.3V from 2.5V ref reading
-                    BattVolts *= scale;
-                } 
-                else
-                    V3p3 = 3.3f; // Assume no 2.5V connected
+                    Debug.WriteLine("Verifying application.... ");
+                    var vapp = updater.VerifyApplication();
+                    Debug.WriteLine("Application version: " + vapp);
 
-                Debug.Print("Battery Voltage = " + BattVolts);
+                    Debug.WriteLine("Verify firmware.... ");
+                    var vfw = updater.VerifyFirmware();
+                    Debug.WriteLine("Firmware version: " + vfw);
 
-                //AvBattVolts = (AvBattVolts - (AvBattVolts/16)) + (BattVolts / 16);
-                AvBattVolts += ((BattVolts - AvBattVolts) / 16);
-#endif
-                    DateTime dtRTC;
-
-                    switch (MenuType)
-                    {
-                        case MenuTypes.Settings: // Set Defaults
-                            switch (MenuItem)
-                            {
-                                case MenuItems.setTopLevel: //Default screen
-                                    //PrintScreen("AnodeMeter Setup", "Buttons: " + BtnState + " " + i++);
-                                    //dtRTC = RealTimeClock.GetTime();
-                                    PrintScreen("AnodeMeter Setup", "  < " + SpecialLCDCharacter.Down + " >");
-                                    if (CentreButton.click)
-                                    {
-                                        ++MenuItem;
-                                        MenuStep = 0;
-                                    }
-                                    break;
-
-                                case MenuItems.setBackLight: // Adjust backlight
-                                    _led.TurnOff();
-                                    PrintScreen("Adjust Backlight", Globals.BackLightLevel + "% (L/R)");
-                                    AdjustPercent(RightButton, LeftButton, ref Globals.BackLightLevel);
-                                    _lcd.SetBacklight(Globals.BackLightLevel);
-                                    break;
-                                case MenuItems.setGreenLED: // Adjust Green LED brightness
-                                    PrintScreen("Adjust Green LED", Globals.GLedBright + "% (L/R)");
-                                    AdjustPercent(RightButton, LeftButton, ref Globals.GLedBright);
-                                    _led.Lock(5);
-                                    _led.TurnOn(Common.LED.LedColor.Green);
-                                    break;
-                                case MenuItems.setRedLED: // Adjust Red LED brightness
-                                    PrintScreen("Adjust Red LED", Globals.RLedBright + "% (L/R)");
-                                    AdjustPercent(RightButton, LeftButton, ref Globals.RLedBright);
-                                    _led.Lock(5);
-                                    _led.TurnOn(Common.LED.LedColor.Red);
-                                    break;
-                                case MenuItems.setLCDBias: // Adjust LCD Bias
-                                    _led.TurnOff();
-                                    PrintScreen("Adjust LCD Bias", Globals.LCDBiasPC + "% (L/R)");
-                                    AdjustPercent(RightButton, LeftButton, ref Globals.LCDBiasPC);
-                                    _lcd.SetBias(Globals.LCDBiasPC);
-                                    break;
-
-                                case MenuItems.setClock:
-                                    switch (MenuStep)
-                                    {
-                                        case 0:
-                                            PrintScreen("Set Clock ?", SpecialLCDCharacter.Tick);
-                                            if (CentreButton.click)
-                                                ++MenuStep;
-                                            break;
-
-                                        case 1:
-                                        case 2:
-                                            dtRTC = RealTimeClock.GetTime();
-                                            PrintScreen("Date: " + dtRTC.ToString("yyyy/MM/dd"), "Time: " + dtRTC.ToString("HH:mm:ss"));
-                                            if (CentreButton.click)
-                                            {
-
-                                                int pos = 0;
-                                                // Do cursor position and blink here
-                                                int year = dtRTC.Year;
-                                                if (year < 2020) year = 2020;
-
-                                                dtunits[0].val = year;
-                                                dtunits[1].val = dtRTC.Month;
-                                                dtunits[2].val = dtRTC.Day;
-                                                dtunits[3].val = dtRTC.Hour;
-                                                dtunits[4].val = dtRTC.Minute;
-                                                dtunits[5].val = dtRTC.Second;
-
-                                                while (true)
-                                                {
-                                                    Thread.Sleep(100);
-
-                                                    if (RightButton.click)
-                                                    {
-                                                        if (++pos >= dtunits.Length)
-                                                            pos = 0;
-                                                    }
-                                                    else if (LeftButton.click)
-                                                    {
-                                                        if (--pos < 0)
-                                                            pos = dtunits.Length - 1;
-                                                    }
-                                                    dtunit dt = dtunits[pos];
-                                                    if (UpButton.click)
-                                                    {
-                                                        if (++dt.val > dt.max)
-                                                            dt.val = dt.min;
-                                                    }
-                                                    else if (DownButton.click)
-                                                    {
-                                                        if (--dt.val < dt.min)
-                                                            dt.val = dt.max;
-                                                    }
-                                                    else if (CentreButton.click)
-                                                        break;
-
-                                                    dtunits[pos] = dt; // Why do we need to do this?
-                                                    //PrintScreen("Date: " + year + "/" + mon + "/" + day, "Time: " + hour + ":" + min + ":" + sec);
-                                                    PrintScreen("Date: " + dtfmt(dtunits[0]) + "/" + dtfmt(dtunits[1]) + "/" + dtfmt(dtunits[2]), "Time: " + dtfmt(dtunits[3]) + ":" + dtfmt(dtunits[4]) + ":" + dtfmt(dtunits[5]));
-                                                    _lcd.SetBlinkCursor((byte)(dt.col + dt.width - 1), dt.row, true);
-                                                }
-                                                _lcd.SetBlinkCursor(0, 0, false);
-                                                DateTime dtNew = new DateTime(dtunits[0].val, dtunits[1].val, dtunits[2].val, dtunits[3].val, dtunits[4].val, dtunits[5].val);
-                                                //RealTimeClock.SetTime(dtNew);
-                                                Program.AM._tm.SyncTime(dtNew);
-                                                Program.AM._tm.SystemTimeIsOK();
-                                                Program.AM.RegisterActivity();
-                                                _ds.LogSyncTime(dtNew);
-                                                if (MenuStep == 2)
-                                                {
-                                                    ExitSetup();
-                                                }
-
-                                            }
-                                            break;
-
-                                        case 3:     // Confirm Time message - entry point when time is not confirmed
-                                            PrintScreen("Confirm Time", SpecialLCDCharacter.Tick);
-                                            while (true)
-                                            {
-                                                if (CentreButton.click)
-                                                {
-                                                    MenuStep = 2;
-                                                    break;
-                                                }
-                                                Thread.Sleep(100);
-                                            }
-                                            break;
-
-                                        default:
-                                            MenuStep = 0;
-                                            break;
-                                    }
-                                    break;
-
-                                case MenuItems.setMeasMode: // Allow either Rod only, ClampOnly, ClampThenRod or RodThenClamp
-                                    PrintScreen("Metering Mode? ", Globals.MeasurementModeDesc[Globals.MeasurementModeIndex]);
-                                    SelectMeasurementMode(RightButton, LeftButton);
-                                    break;
-
-                                case MenuItems.setLogRawData: // Are we logging all raw data read (default not)
-                                    PrintScreen("Log Raw Data? ", Globals.LogRawData == 0 ? "No" : "Yes");
-                                    if (LeftButton.click) Globals.LogRawData = 0;
-                                    if (RightButton.click) Globals.LogRawData = 1;
-                                    break;
-
-                                case MenuItems.setSave: // Save factory defaults
-                                    PrintScreen("Save Defaults?", SpecialLCDCharacter.Tick);
-                                    if (CentreButton.click)
-                                    {
-                                        FlashSettings.SaveSettings();
-                                        SaveSettingsToSD(_ds);
-
-                                        PrintScreen("", "Settings Saved");
-                                        Thread.Sleep(1000);
-                                        MenuItem = 0;
-                                        MenuStep = 0;
-                                    }
-                                    break;
-                                case MenuItems.setLoad: // Load factory defaults
-                                    PrintScreen("Reload Defaults?", SpecialLCDCharacter.Tick);
-                                    if (CentreButton.click)
-                                    {
-                                        FlashSettings.Reload();
-
-                                        PrintScreen("", "Reloaded");
-                                        Thread.Sleep(1000);
-                                        MenuItem = 0;
-                                        MenuStep = 0;
-                                    }
-                                    break;
-
-                                // AutoScan LCD Bias, enter by holding Left-arrow on startup
-                                // (We don't come here via normal menu selection)
-                                case MenuItems.setAutoScan:
-                                    PrintScreen("LCD Bias Adjust", "SEL When Visible");
-                                    if (++Globals.LCDBiasPC > 100)
-                                        Globals.LCDBiasPC = 0; //GlobalConsts.FACTORY_DEFAULT_LCD_BIAS;
-                                    _lcd.SetBias(Globals.LCDBiasPC);
-                                    if (CentreButton.state)
-                                    {
-                                        MenuItem = MenuItems.setLCDBias;   // Jump to manual adjust for fine-tuning
-                                        MenuStep = 0;
-                                    }
-                                    break;
-                                default:
-                                    MenuItem = 0;
-                                    MenuStep = 0;
-                                    break;
-                            }
-                            break;
-                        case MenuTypes.Info: // Info
-                            switch (MenuItem)
-                            {
-                                case 0: //Default screen
-                                    PrintScreen("Meter Readings", "  < " + SpecialLCDCharacter.Down + " >");
-                                    if (CentreButton.click)
-                                    {
-                                        ++MenuItem;
-                                    }
-                                    break;
-
-                                case MenuItems.infoBatt: // Battery State, Vref (2.5V) and 3.3V supply
-                                    // PrintScreen("Input:" + v.ToString("F4"), "Battery " + AvBattVolts.ToString("F2"));
-                                    PrintScreen("Batt: " + AvBattVolts.ToString("F2") + " " + BattVolts.ToString("F2"), "VRef: " + vRef.ToString("F2") + " " + V3p3.ToString("F2"));
-                                    break;
-                                case MenuItems.infoInput: // Analog In Value
-                                    switch (MenuStep)
-                                    {
-                                        case 0:
-                                            //TODO: Change second input to actual input, currently showing battery percent as test - DAV 
-                                            PrintScreen("Input 1: " + Ain0.ToString("F2"), "Input 2: " + _bc.GetStateOfChargePercent());
-                                            AvAin0 = Ain0;
-                                            if (CentreButton.click)
-                                                ++MenuStep;
-                                            break;
-                                        case 1:
-                                            PrintScreen(Ain0.ToString("F13"), AvAin0.ToString("F13"));
-                                            AvAin0 = (0.9 * AvAin0) + (Ain0 / 10.0);
-                                            if (CentreButton.click)
-                                                ++MenuStep;
-                                            break;
-                                        default:
-                                            MenuStep = 0;
-                                            break;
-                                    }
-
-                                    break;
-                                case MenuItems.infoFirmware:    // Board type and firmware version
-                                    PrintScreen("Board: " + (Globals.G120 ? "G120" : "EMX"), "FW:    " + SystemInfo.Version.ToString());
-                                    break;
-                                case MenuItems.infoBuiltOn: // Build date from version string
-                                    //DateTime d = GetBuildDate();
-                                    PrintScreen("Built:" + Globals.BuildDate.ToString("yyyy-MM-dd"), "      " + Globals.BuildDate.ToString("HH:mm:ss"));
-                                    break;
-                                case MenuItems.infoSerial: // Display Meter Serial Number. Should be same as on sticker inside box
-                                    PrintScreen("Serial: " + Globals.Serial, "");
-                                    break;
-#if false
-                            case MenuItems.infoMacAdd: // MAC Address
-                                PrintScreen("Mac:" + GetMacAddress(), "");
-                                break;
-#endif
-                                case MenuItems.infoSDCard: // SD Card Present? (And details, size, etc?)
-
-                                    if (Globals.CfgState != Globals.ConfigState.UpdatingConfig)
-                                    {
-                                        if (Globals.SDCardPresent)
-                                            PrintScreen("SDCard Present", Globals.CfgState == Globals.ConfigState.ConfigOK ? "" : (Globals.SDCardFault ? "HW Fault" : "Not Configured"));
-                                        else
-                                            PrintScreen("SDCard Missing", "or Empty");
-                                    }
-
-                                    break;
-                                default:
-                                    MenuItem = 0;
-                                    MenuStep = 0;
-                                    break;
-                            }
-                            break;
-
-                        case MenuTypes.Mode: // Modes
-                            if (Globals.SDCardPresent && Globals.USBAvailable)
-                            {
-                                switch (MenuItem)
-                                {
-                                    case 0:
-                                        PrintScreen("DiskDrive Mode", "Connect ?  " + SpecialLCDCharacter.Tick);
-                                        if (CentreButton.click)
-                                        {
-                                            DiskDriveMode(true);
-                                            MenuItem = MenuItems.modeDiskDrive;
-                                            MenuStep = 0;
-                                        }
-                                        break;
-
-                                    case MenuItems.modeDiskDrive:
-                                        int wtime = 10;
-                                        while (USBClientController.GetState() != USBClientController.State.Running)
-                                        {
-                                            PrintScreen("Connect USB " + wtime, SpecialLCDCharacter.Tick + " to Exit");
-                                            if ((CentreButton.click) || (--wtime <= 0)) break;
-                                            Thread.Sleep(1000);
-                                        }
-
-                                        PrintScreen("DiskDrive Mode", "Disconnect?  " + SpecialLCDCharacter.Tick);
-                                        while (USBClientController.GetState() == USBClientController.State.Running)
-                                        {
-                                            if (CentreButton.click) break;
-                                            Thread.Sleep(100);
-                                        }
-                                        DiskDriveMode(false);
-                                        _ds.FileSystemChanged();    // Files may have been changed so re-check
-                                        PrintScreen("Device Mode", "Resuming...");
-                                        Thread.Sleep(1000);
-                                        MenuItem = 0;
-                                        MenuStep = 0;
-                                        break;
-
-                                    default:
-                                        MenuItem = 0;
-                                        MenuStep = 0;
-                                        break;
-                                }
-                            }
-                            else
-                            {
-                                // No SD or in USB debug mode, skip this option
-                                MenuType += mtDir;  // Keep going in last direction. Should wrap this in a method!
-                                MenuStep = 0;
-                                //++MenuType;
-                            }
-                            break;
-
-                        case MenuTypes.Support: // Support
-                            switch (MenuItem)
-                            {
-                                case 0: //Default screen
-                                    PrintScreen("Meter Support", "  < " + SpecialLCDCharacter.Down + " >");
-                                    if (CentreButton.click)
-                                    {
-                                        ++MenuItem;
-                                        MenuStep = 0;
-                                    }
-                                    break;
-                                case MenuItems.supportPowerOff: // Test power-off control
-                                    PrintScreen("Test Power-off", "Hold <= Button");
-                                    if (LeftButton.held)
-                                    {
-                                        MenuItem = 0;
-                                        MenuStep = 0;
-                                        PowerOff("", 1);
-                                        break;
-                                    }
-                                    if (RightButton.held)
-                                    {
-                                        MenuItem = MenuItems.supporSetSerial;
-                                        MenuStep = 0;
-                                    }
-                                    break;
-                                case MenuItems.supportBattTest:
-                                    switch (MenuStep)
-                                    {
-                                        case 0:
-                                            PrintScreen("Battery Test", SpecialLCDCharacter.Tick + ((Globals.PowerState != Globals.PowerStates.BatteryTest) ? " Start?" : " Stop?"));
-                                            ++MenuStep;
-                                            break;
-                                        case 1:
-                                            if (CentreButton.click)
-                                            {
-                                                if (Globals.PowerState != Globals.PowerStates.BatteryTest)
-                                                {
-                                                    // Start battery test
-                                                    LastPowerState = Globals.PowerState;
-                                                    Globals.PowerState = Globals.PowerStates.BatteryTest;
-                                                    Globals.gBattFile = FileDefs.BattRefFile;
-                                                    _ds.WriteBattTestName(Globals.gBattFile + "," + DateTime.Now.ToString("yyyy/MM/dd HH:mm"));
-                                                    Globals.BatTimer = 0;
-                                                    _ds.ClearBattLog();
-                                                }
-                                                else
-                                                {
-                                                    // Stop battery test (normally stopped by power-down)
-                                                    Globals.PowerState = LastPowerState;
-                                                }
-                                                ++MenuStep;
-                                            }
-                                            break;
-                                        default:
-                                            MenuStep = 0;
-                                            break;
-                                    }
-                                    break;
-                                case MenuItems.supportIFU:  // Support - IFU (In Field Update)
-                                    switch (MenuStep)
-                                    {
-                                        case 0:
-                                            PrintScreen("Update Software?", SpecialLCDCharacter.Tick);
-                                            ++MenuStep;
-                                            break;
-                                        case 1:
-                                            if (CentreButton.click)
-                                                ++MenuStep;
-                                            break;
-                                        case 2:
-                                            InFieldUpdate.CheckForUpdates();
-                                            ++MenuStep;
-                                            break;
-                                        case 3:
-                                            if (InFieldUpdate.HaveUpdate)
-                                            {
-                                                if (InFieldUpdate.NeedFWUpdate)
-                                                    if (InFieldUpdate.HaveFW)
-                                                        PrintScreen("App. OK, FW OK", "Update ? " + SpecialLCDCharacter.Tick);
-                                                    else
-                                                        PrintScreen("Require FW", "Can't Update");
-                                                else
-                                                    PrintScreen("FW is OK.", "Update ? " + SpecialLCDCharacter.Tick);
-                                            }
-                                            else
-                                                PrintScreen("No Update Found", "");
-
-                                            ++MenuStep;
-                                            break;
-                                        case 4:
-                                            if (CentreButton.click)
-                                            {
-                                                try
-                                                {
-                                                    if (InFieldUpdate.Update())
-                                                    {
-                                                        PrintScreen("System Updated", "");   // This should never be reachable, as we should have rebooted!
-                                                        Thread.Sleep(500);
-                                                        MenuStep = 0;
-                                                    }
-                                                    else
-                                                    {
-                                                        PrintScreen("Update Failed", "");
-                                                        Thread.Sleep(1000);
-                                                        MenuItem = 0;
-                                                        MenuStep = 0;
-                                                    }
-                                                }
-                                                catch (Exception e)
-                                                {
-                                                    PrintScreen("Update Error", "");
-                                                    Debug.Print("Update Error: " + e.Message);
-                                                    Thread.Sleep(1000);
-                                                    MenuItem = 0;
-                                                    MenuStep = 0;
-                                                }
-
-                                            }
-                                            break;
-                                        case 5:
-
-                                            break;
-                                        default:
-                                            MenuStep = 0;
-                                            break;
-                                    }
-                                    break;
-
-                                case MenuItems.supportEraseID:
-                                    switch (MenuStep)
-                                    {
-                                        case 0:
-                                            PrintScreen("Erase Meter # ?", "[Pre-shipping]");
-                                            ++MenuStep;
-                                            break;
-                                        case 1:
-                                            if (CentreButton.held)
-                                            {
-                                                ++MenuStep;
-                                                PrintScreen("Last chance", "Wiping Meter ID");
-                                            }
-                                            break;
-                                        case 2:
-                                            if (!CentreButton.held)
-                                            {
-                                                PrintScreen("Meter # = " + Globals.DeviceID, "Erase Forever? " + SpecialLCDCharacter.Tick);
-                                                ++MenuStep;
-                                            }
-                                            break;
-                                        case 3:
-                                            if (CentreButton.held)
-                                            {
-                                                _ds.DeleteDevicedID();
-                                                PrintScreen("It is Done", "Ready to Ship");
-                                                Thread.Sleep(1000);
-                                                MenuItem = MenuItems.supportPowerOff;
-                                                MenuStep = 0;
-                                            }
-                                            break;
-                                        default:
-                                            MenuStep = 0;
-                                            break;
-                                    }
-                                    break;
-
-                                case MenuItems.supporSetSerial:   // Set serial number. "Hidden" option, to enter hold right arrow instead of left from previous option
-                                    PrintScreen("Set Serial No. ?", "");
-                                    if (CentreButton.click)
-                                    {
-                                        int pos = 1;
-                                        int t;
-                                        UInt16 s = Globals.Serial;
-                                        int n = 1;
-
-                                        while (true)
-                                        {
-                                            Thread.Sleep(100);
-                                            if (RightButton.click)
-                                            {
-                                                if (--pos < 1)
-                                                    pos = 1;
-                                                n = (int)System.Math.Pow(10, (pos - 1));
-                                            }
-                                            else if (LeftButton.click)
-                                            {
-                                                if (++pos > 4)
-                                                    pos = 4;
-                                                n = (int)System.Math.Pow(10, (pos - 1));
-                                            }
-
-                                            if (UpButton.click)
-                                                s = (UInt16)((t = (int)s + n) < 10000 ? t : 9999);
-                                            else if (DownButton.click)
-                                                s = (UInt16)((t = (int)s - n) > 0 ? t : 0);
-                                            else if (CentreButton.click)
-                                                break;
-
-                                            string ss = "000" + s.ToString();
-                                            ss = ss.Substring(ss.Length - 4);
-                                            PrintScreen("Serial: " + ss, "");
-                                            _lcd.SetBlinkCursor((byte)(8 + 4 - pos), 0, true);
-                                        }
-                                        _lcd.SetBlinkCursor(0, 0, false);
-                                        PrintScreen("Serial: " + s, SpecialLCDCharacter.Tick + "  Save?");
-                                        while (true)
-                                        {
-                                            Thread.Sleep(100);
-                                            if (CentreButton.click)
-                                            {
-                                                UInt16 ls = Globals.Serial;
-                                                Globals.Serial = s;
-                                                MenuType = MenuTypes.Settings;
-                                                MenuItem = MenuItems.setSave;
-                                                MenuStep = 0;
-                                                Logging.IssueEvent(Logging.ErrSeverity.Informational, "BoardSetup::", "Serial Number Changing from " + ls + " to " + Globals.Serial, "Serial: " + Globals.Serial);
-                                                break;
-                                            }
-                                            else if (LeftButton.click || RightButton.click || UpButton.click || DownButton.click)
-                                            {
-                                                PrintScreen("Serial not saved", "Keep " + Globals.Serial);
-                                                Thread.Sleep(1000);
-                                                MenuItem = 0;
-                                                MenuStep = 0;
-                                                break;
-                                            }
-                                        }
-
-                                        //MenuItem = 0;
-                                    }
-                                    break;
-
-                                default:
-                                    MenuItem = 0;
-                                    MenuStep = 0;
-                                    break;
-                            }
-                            break;
-                        case MenuTypes.Exit: // Exit Setup
-                            PrintScreen("Exit Setup?", SpecialLCDCharacter.Tick + "   <  >");
-                            if (CentreButton.click)
-                            {
-                                ExitSetup(true);
-                            }
-                            break;
-                        default:
-                            MenuType = 0;
-                            MenuStep = 0;
-                            break;
-                    }
-                }
-                catch (Exception e)
-                {
-                    Debug.Print("BoardCheck Error: " + e.Message);
-                    PrintScreen("BoardCheck Error", "");
-                    Thread.Sleep(1000);
-                    MenuType = MenuTypes.Settings;
-                    MenuItem = MenuItems.setTopLevel;
-                    MenuStep = 0;
-                }
-                Thread.Sleep(100);
-            }
-        }
-
-        static USBC_MassStorage ms;
-        static void DiskDriveMode(bool on)
-        {
-            if (on)
-            {
-                try
-                {
-                    _ds.Lock(true);
-                    _gw.Suspend();
-                    //ConfigureSystem._ps.UnmountFileSystem();
-                    ms = USBClientController.StandardDevices.StartMassStorage();
-                    // DAV - The following makes us a device with the vendor name AnodeMtr, and the serial number as the product
-                    // could be useful, however it then "installs" a new driver instance for each serial number (each meter)
-                    //ms.AttachLun(0, ConfigureSystem._ps, "AnodeMtr", "#" + Globals.DeviceID);
-
-                    // This way gives us one name, used for all meters
-                    ms.AttachLun(0, ConfigureSystem._ps, "C-Born", "AnodeMeter Drive");
-                    ms.EnableLun(0);
-                }
-                catch (Exception ex)
-                {
-                    Debug.Print("Exception: " + ex.Message);
-                }
-            }
-            else
-            {
-                try
-                {
-                    ms.DisableLun(0);
-                    USBClientController.Stop();
-                    _gw.Resume();
-                    _ds.Lock(false);
-                }
-                catch (Exception ex)
-                {
-                    Debug.Print("Exception: " + ex.Message);
-                }
-            }
-        }
-
-        static void SelectMeasurementMode(HardwareButton BInc, HardwareButton BDec)
-        {
-
-            if (BInc.click)
-                Globals.MeasurementModeIndex = (Globals.MeasurementModeIndex + 1) % Globals.MeasurementModeDesc.Length;
-
-            else if (BDec.click)
-                Globals.MeasurementModeIndex = (Globals.MeasurementModeIndex + Globals.MeasurementModeDesc.Length - 1) % Globals.MeasurementModeDesc.Length;
-        }
-
-        static void AdjustPercent(HardwareButton BInc, HardwareButton BDec, ref byte v)
-        {
-            if ((BInc.click || BInc.held) && (v < 100))
-                ++v;
-            else if ((BDec.click || BDec.held) && (v > 0))
-                --v;
-        }
-
-        public static void PowerOff()
-        {
-            // Old Meter setup
-            // OutputPort PwrDown = new OutputPort((Cpu.Pin)GHI.Hardware.EMX.Pin.IO31, false);
-
-            // New Meter Hardware [This isn't needed, the original power-down circuit still works - DAV]
-            // OutputPort opLeft = new OutputPort((Cpu.Pin)GHI.Hardware.EMX.Pin.IO23, false);
-            // OutputPort opRight = new OutputPort((Cpu.Pin)GHI.Hardware.EMX.Pin.IO1, false);
-
-            Power(false);
-        }
-
-        public static void Power(bool State)
-        {
-            try
-            {
-                if (PowerLine == null)
-                    PowerLine = new TristatePort(IOMap.PowerLine, false, false, Port.ResistorMode.PullUp);
-
-                if (State)
-                    PowerLine.Active = false;   // Set to input mode with pullup
-                else
-                {
-                    PowerLine.Active = true;    // Set to output mode, low
-                    PowerLine.Write(false);
-                }
-            }
-            catch { }
-        }
-
-        public void PowerOff(string msg, int delay)
-        {
-            DataStore.FlushFileSystem();
-
-            Boolean Mode = InSetupMode;
-            int Screen = _lcd.SetScreen(1); // Change to alternate screen
-            PrintScreen(msg, "Goodbye...");
-            InSetupMode = false;
-            Thread.Sleep(delay * 1000);
-            PowerOff();
-
-            // In case PowerOff doesn't work...
-            PrintScreen("Power Down", "Failed");
-            Power(true);
-            Thread.Sleep(1000);
-            InSetupMode = Mode;
-            _lcd.SetScreen(Screen);         // Restore screen
-        }
-
-        private void ExitSetup(bool SetToDefault = true)
-        {
-            if (SetToDefault)
-            {
-                MenuType = MenuTypes.Settings;
-                MenuItem = MenuItems.setTopLevel;
-                MenuStep = 0;
-            }
-
-            PrintScreen("", "");
-            Thread.Sleep(100);
-            _lcd.SetScreen(0);
-            InSetupMode = false;
-        }
-
-        private void CheckRTC()
-        {
-            try
-            {
-                DateTime dt = RealTimeClock.GetTime();
-            }
-            catch (Exception e)
-            {
-                var message = e.Message;
-                RealTimeClock.SetTime(Globals.BuildDate);
-            }
-        }
-
-        public static void SaveSettingsToSD(Common.DataStore ds)
-        {
-            if (ds != null)
-            {
-                string BackLight = "BackLight" + ',' + Globals.BackLightLevel.ToString() + '\r';
-                string GreenLed = "GreenLed" + ',' + Globals.GLedBright.ToString() + '\r';
-                string RedLed = "RedLed" + ',' + Globals.RLedBright.ToString() + '\r';
-                string LcdBias = "LcdBias" + ',' + Globals.LCDBiasPC.ToString() + '\r';
-                string Serial = "Serial" + ',' + Globals.Serial.ToString() + '\r';
-                string MeasMode = "MeasMode" + ',' + Globals.MeasurementModeIndex.ToString() + '\r';
-                string LogRawData = "LogRawData" + ',' + Globals.LogRawData.ToString();
-
-                string FactoryDefs = BackLight + GreenLed + RedLed + LcdBias + Serial + MeasMode + LogRawData;
-
-                if (Globals.SleepOverride)
-                {
-                    FactoryDefs += '\r' +
-                        "SleepDelay" + ',' + Globals.SleepDelay + ',' + Globals.WakeDelay + '\r'
-                        + "ConnectedSleepDelay" + ',' + Globals.ConnectedSleepDelay + ',' + Globals.ConnectedWakeDelay + '\r';
-                }
-
-                ds.WriteFactoryDefaults(FactoryDefs);
-            }
-        }
-
-        private static Common.LcdDisplay.CursorPosition Display1 = new Common.LcdDisplay.CursorPosition(0, 0);
-        private static Common.LcdDisplay.CursorPosition Display2 = new Common.LcdDisplay.CursorPosition(1, 0);
-
-        public static void PrintScreen(string line1, string line2)
-        {
-            _lcd.AltMessages((line1 + "                ").Substring(0, 16), (line2 + "                ").Substring(0, 16));
-        }
-
-        private string dtfmt(dtunit dt)
-        {
-            string s = ("000" + dt.val);
-            s = s.Substring(s.Length - dt.width, dt.width);
-            return s;
-        }
-
-        public BoardSetup(Common.LcdDisplay lcd, Common.AnodeMeterButtons amb, Common.LED led, Common.BatteryCharge bc, Common.DataStore ds, BinaryTransport gw)
-        {
-            _lcd = lcd;
-            _amb = (PhysicalButtons)amb;
-            _led = led;
-            _bc = bc;
-            _ds = ds;
-            _gw = gw;
-
-            HardwareButton[] Buttons = _amb.GetButtons();
-            UpButton = Buttons[0];
-            DownButton = Buttons[1];
-            LeftButton = Buttons[2];
-            RightButton = Buttons[3];
-            CentreButton = Buttons[4];
-
-            var boardSetupThread = new Thread(this.BoardSetupWorker);
-            boardSetupThread.Start();
-        }
-
-        public bool EnterSetupMode(bool enter)
-        {
-            if (!InSetupMode)
-            {
-                bool held = false;
-
-                if (enter)
-                {
-                    InSetupMode = true;
-                    _lcd.SetScreen(1);
-                }
-                else
-                {
-                    if (UpButton.held && DownButton.held)
-                        held = true;
-                    else
-                        StillHeld = false;
-
-                    if (held && !StillHeld)
-                    {
-                        StillHeld = true;
-                        InSetupMode = true;
-                        _lcd.SetScreen(1);
-                    }
-                }
-            }
-
-            return InSetupMode;
-        }
-
-
-        public bool EnterShutDownMode(bool enter)
-        {
-
-            if (enter || (LeftButton.held && RightButton.held))
-            {
-                InShutDownMode = true;
-            }
-
-            return InShutDownMode;
-        }
-
-
-        public bool EnterSetupMode(MenuTypes MType, MenuItems MItem, int optMenuStep = 0)
-        {
-            if (!InSetupMode)
-            {
-                MenuType = MType;
-                MenuItem = MItem;
-                MenuStep = optMenuStep;
-                InSetupMode = true;
-                _lcd.SetScreen(1);
-            }
-            return InSetupMode;
-        }
-#if false
-        private static string GetMacAddress()
-        {
-            NetworkInterface ni = NetworkInterface.GetAllNetworkInterfaces()[0];
-            //char[] c = new char[17];
-            char[] c = new char[12];
-            byte b;
-
-            for (byte y = 0, x = 0; y < 6; ++y, ++x)
-            {
-                b = (byte)(ni.PhysicalAddress[y] >> 4);
-                c[x] = (char)(b > 9 ? b + 0x37 : b + 0x30);
-                b = (byte)(ni.PhysicalAddress[y] & 0xF);
-                c[++x] = (char)(b > 9 ? b + 0x37 : b + 0x30);
-                //if (y < 5) c[++x] = '-';
-            }
-
-            return new string(c);
-        }
-
-        // Now in Globals.BuildDate, set in Main
-        private DateTime GetBuildDate()
-        {
-            Assembly assem = Assembly.GetExecutingAssembly();
-            AssemblyName assemName = assem.GetName();
-            Version ver = assemName.Version;
-            DateTime buildDateTime = new DateTime(2000, 1, 1).Add(new TimeSpan(
-                TimeSpan.TicksPerDay * ver.Build + // days since 1 January 2000
-                TimeSpan.TicksPerSecond * 2 * ver.Revision)); // seconds since midnight, (multiply by 2 to get original)
-            return buildDateTime;
-        }
-#endif
-    }
-
-    public class FlashSettings
-    {
-        private static ExtendedWeakReference s_FlashSettings;
-        private static class TypeUniqueToOurAppV2 { }
-
-        [Serializable]
-        public sealed class FactoryDefaults
-        {
-            public byte LCDBiasPC = GlobalConsts.FACTORY_DEFAULT_LCD_BIAS;         // This needs to be set correctly so we can see the display
-            public byte GLedBright = 25;     // Green LED Brightness
-            public byte RLedBright = 25;     // Red LED Brighness
-            public byte BackLightLevel = 35; // 35 Percent backlight by default 
-            public UInt16 Serial = 0;         // Serial number (written on PCB/Box sticker, digits only)
-            public byte MeasMode = 0;
-        }
-
-        public static void OnBoot()
-        {
-            s_FlashSettings = ExtendedWeakReference.RecoverOrCreate(typeof(TypeUniqueToOurAppV2), 0, ExtendedWeakReference.c_SurvivePowerdown);
-            s_FlashSettings.Priority = (Int32)ExtendedWeakReference.PriorityLevel.Important; // Or System??
-            FactoryDefaults factoryDefaults = (FactoryDefaults)s_FlashSettings.Target;
-            if (factoryDefaults == null)
-            {
-                // Wasn't found - create new one
-                factoryDefaults = new FactoryDefaults();
-            }
-            else
-            {
-                // found our defaults
-                Globals.LCDBiasPC = factoryDefaults.LCDBiasPC;
-                Globals.BackLightLevel = factoryDefaults.BackLightLevel;
-                Globals.GLedBright = factoryDefaults.GLedBright;
-                Globals.RLedBright = factoryDefaults.RLedBright;
-                Globals.Serial = factoryDefaults.Serial;
-                Globals.MeasurementModeIndex = factoryDefaults.MeasMode;
-            }
-
-            //s_FlashSettings.Target = factoryDefaults; // Writing settings?
-        }
-
-        public static void Reload()
-        {
-            FactoryDefaults factoryDefaults = (FactoryDefaults)s_FlashSettings.Target;
-
-            if (factoryDefaults != null)
-            {
-                // Load our defaults
-                Globals.LCDBiasPC = factoryDefaults.LCDBiasPC;
-                Globals.BackLightLevel = factoryDefaults.BackLightLevel;
-                Globals.GLedBright = factoryDefaults.GLedBright;
-                Globals.RLedBright = factoryDefaults.RLedBright;
-                Globals.Serial = factoryDefaults.Serial;
-                Globals.MeasurementModeIndex = factoryDefaults.MeasMode;
-            }
-        }
-
-        public static void SaveSettings()
-        {
-            FactoryDefaults factoryDefaults = (FactoryDefaults)s_FlashSettings.Target;
-
-            if (factoryDefaults == null)
-            {
-                // Wasn't found - create new one
-                factoryDefaults = new FactoryDefaults();
-            }
-
-            // Install current values
-
-            factoryDefaults.LCDBiasPC = Globals.LCDBiasPC;
-            factoryDefaults.BackLightLevel = Globals.BackLightLevel;
-            factoryDefaults.GLedBright = Globals.GLedBright;
-            factoryDefaults.RLedBright = Globals.RLedBright;
-            factoryDefaults.Serial = Globals.Serial;
-            factoryDefaults.MeasMode = (byte)Globals.MeasurementModeIndex;
-
-            s_FlashSettings.Target = factoryDefaults; // Write settings
-            GHI.Premium.System.Util.FlushExtendedWeakReferences();
-        }
-    }
-
-    /* =========== In Field Update Strategy =========
-     * 
-     * We have a top level directory "Update" (/SD/Update) with a subdirectory for each hardware type (Update\EMX and Update\G120)
-     * We require one file for a deployment only update (Same SDK release)
-     * We require an additional 3 files if we also need to update the firmware.
-     * We will use a naming convention for now. Later perhaps a descriptor file with file names and CRC/SHA checks etc will be a better approach
-     * 
-     * The Application file name is App_xxxx.hex, where xxxx contains a firmware revision number.
-     * For example, an Application built against SDK 4.2.10.1 should be called App_4.2.10.1_.hex,if we want to be able to load it without loading firmware
-     * It could also be App_4.2.10.1_1234.5678.hex, etc, the subsequent digits being used to identify the file, but not used by the software
-     * 
-     * If the App revision doesn't match the firmware revision in use, then firmware subdirectory and files must be present.
-     * 
-     * Firmware files should be placed in a subdirectory named for the firmware version, eg SDK_4.2.10.1
-     * (or the full path \SD\Update\EMX\SDK_4.2.10.1)
-     * The three firware files must be named Firmware.hex, Firmware2.hex and Config.hex, as per the GHI convention.
-     * These files will normally be copied from the GHI development directory,
-     * ie C:\Program Files (x86)\GHI Electronics\GHI Premium NETMF v4.2 SDK\EMX\Firmware
-     * 
-     * At this stage only one application is supported. At a later date we may allow multiple files and user selection
-     * 
-     * Old files can be moved to a /old subdirectory, new files put in a /new subdirectory, if desired
-     * 
-     * DAV  9AUG13
-     *      10AUG13 Updated to require subdirectory for firmware files)
-    */
-    public class InFieldUpdate
-    {
-        static string Path;
-        static string AppBase;
-
-        static string AppName = null;
-        static string fw = null;
-        static string fw2 = null;
-        static string config = null;
-
-        public static bool HaveUpdate = false;
-        public static bool NeedFWUpdate = true;
-        public static bool HaveFW = false;
-
-        public static void CheckForUpdates()
-        {
-            string[] Files;
-            Path = @"SD\Updates\" + (Globals.G120 ? "G120" : "EMX") + @"\";
-            AppBase = "app_" + SystemInfo.Version.ToString();
-
-            int AppBaseLen = AppBase.Length;
-
-            HaveFW = false;
-            fw = fw2 = config = null;
-
-            try
-            {
-                HaveUpdate = false;
-                if (Globals.SDCardPresent)
-                {
-                    if (ConfigureSystem._ps != null)
-                    {
-                        if (Directory.Exists(Path))
-                        {
-                            Files = Directory.GetFiles(Path);
-                            foreach (string file in Files)
-                            {
-                                string fn = file.ExtractFileNameFromFullPath();
-                                if (MatchHexFile(fn, AppBase))
-                                {
-                                    // Found a version matched application
-                                    AppName = fn;
-                                    HaveUpdate = true;
-                                    NeedFWUpdate = false;
-                                    return;
-                                }
-                            }
-                            // No Version Matched App - try for any match, and confirm FW files exist
-                            foreach (string file in Files)
-                            {
-                                string fn = file.ExtractFileNameFromFullPath();
-                                if (MatchHexFile(fn, "App_"))
-                                {
-                                    // Found a non version matched application
-                                    AppName = fn;
-                                    HaveUpdate = true;
-                                    NeedFWUpdate = true;
-
-                                    string[] dirs = fn.Split('_');
-                                    if (dirs.Length > 1)
-                                    {
-                                        string d = dirs[1];
-                                        if (d.Right(4).ToLower() == ".hex")
-                                            d = d.Left(d.Length - 4);
-                                        string sdkpath = Path + "SDK_" + d + @"\";
-                                        if (Directory.Exists(sdkpath))
-                                        {
-                                            fw = sdkpath + "Firmware.hex";
-                                            fw2 = sdkpath + "Firmware2.hex";
-                                            config = sdkpath + "Config.hex";
-
-                                            if (File.Exists(fw) && File.Exists(fw2) && File.Exists(config))
-                                            {
-                                                HaveFW = true;
-                                                return;
-                                            }
-                                            else
-                                                fw = fw2 = config = null;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                //throw new Exception("Fail when updating data " + e.ToString());
-                Debug.Print("Exception checking for Updates: " + e.Message);
-                HaveUpdate = false;
-            }
-        }
-
-        static bool MatchHexFile(string fn, string head)
-        {
-            if ((fn.Left(head.Length).ToLower() == head.ToLower()) && (fn.Right(4).ToLower() == ".hex"))
-                return true;
-            else
-                return false;
-        }
-
-        public static bool Update()
-        {
-            try
-            {
-                if (HaveUpdate && !NeedFWUpdate)
-                {
-                    // App matches current firmware. Just load new application
-                    BoardSetup.PrintScreen("Loading App...", "");
+                    BoardSetup.PrintScreen("App: " + vapp, "FW: " + vfw);
                     Thread.Sleep(400);
-                    SystemUpdate.Initialize(SystemUpdate.SystemUpdateType.Deployment);
-                    LoadDataFromSD(Path + AppName, SystemUpdate.SystemUpdateType.Deployment);
-                }
-                else if (HaveUpdate && HaveFW)
-                {
-                    // We need to load in new firmware, config (??) and application
-                    BoardSetup.PrintScreen("Loading App.", "+ Firmware");
-                    Thread.Sleep(400);
-                    SystemUpdate.Initialize(SystemUpdate.SystemUpdateType.Config |
-                                    SystemUpdate.SystemUpdateType.Deployment |
-                                    SystemUpdate.SystemUpdateType.Firmware);
-                    BoardSetup.PrintScreen("Loading: 1/4", "Firmware");
-                    Thread.Sleep(400);
-                    LoadDataFromSD(fw, SystemUpdate.SystemUpdateType.Firmware);          // Load in the 1st firmware file 
 
-                    BoardSetup.PrintScreen("Loading: 2/4", "Firmware2");
-                    Thread.Sleep(400);
-                    LoadDataFromSD(fw2, SystemUpdate.SystemUpdateType.Firmware);         // Load in the 2nd firmware file
-
-                    BoardSetup.PrintScreen("Loading: 3/4", "Config");
-                    Thread.Sleep(400);
-                    LoadDataFromSD(config, SystemUpdate.SystemUpdateType.Config);        // Load in the Configuration file
-
-                    BoardSetup.PrintScreen("Loading: 4/4", "Application");
-                    Thread.Sleep(400);
-                    LoadDataFromSD(Path + AppName, SystemUpdate.SystemUpdateType.Deployment);   // Load new application
-                }
-                else
-                    // Can't load. Shouldn't have been called!
-                    return false;
-
-                // Can we update? (Perhaps there are file errors or something?)
-                if (SystemUpdate.CanUpdate)
-                {
                     BoardSetup.PrintScreen("Saving and", "Rebooting...");
                     Thread.Sleep(400);
+
                     // If we can update, tell the firmware to copy the new files to flash, and restart.
                     // After this restart, your newly loaded firmware files, configuration, and application will be on the board.
-                    SystemUpdate.FlashAndReset();
+                    // Flashing
+
+                    updater.FlashAndReset();
                 }
-            }
+                else
+                    // Can't load. Shouldn't have been called!
+                    return false;
+                }
             catch (Exception e)
             {
-                Debug.Print("Fail when updating data " + e.ToString());
+                Debug.WriteLine("Fail when updating data " + e.ToString());
                 return false;
             }
             return true;
         }
-
-        private static PersistentStorage _pse = ConfigureSystem._ps;
-        private static FileStream _fs;
-
-        // Loads the passed in file from the SD card into memory.
-        static void LoadDataFromSD(string filename, SystemUpdate.SystemUpdateType ifutype)
-        {
-            const int BLOCK_SIZE = 10 * 1024;
-
-            int rest;
-            byte[] hex;
-            long len;
-            int blocknum;
-
-            _fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read);
-            len = _fs.Length;
-
-            blocknum = (int)len / BLOCK_SIZE;
-            rest = (int)len % BLOCK_SIZE;
-            hex = new byte[BLOCK_SIZE];
-
-            for (int i = 0; i < blocknum; i++)
-            {
-                _fs.Read(hex, 0, BLOCK_SIZE);
-
-                SystemUpdate.Load(ifutype, hex, BLOCK_SIZE);
-
-                Debug.Print("Loading file " + filename + ", block " + i + "/" + blocknum);
-            }
-
-            _fs.Read(hex, 0, rest);
-            SystemUpdate.Load(ifutype, hex, rest);
-
-            _fs.Close();
-            _fs.Dispose();
-
-            _fs = null;
-            hex = null;
-
-            Debug.GC(true);
-        }
     }
 }
-#endif

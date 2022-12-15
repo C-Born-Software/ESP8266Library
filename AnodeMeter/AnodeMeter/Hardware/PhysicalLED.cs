@@ -17,15 +17,15 @@ namespace AnodeMeter.Hardware
 
         public PhysicalLED()
         {
-            var controller = PwmController.FromName(SC20260.Timer.Pwm.Controller3.Id);
+            var controller = PwmController.FromName(IOMap.LedFaderController);
             controller.SetDesiredFrequency(10000);
 
             _tmrOnOff = new Timer(ExecuteFlashTransitions, null, 0, GlobalConsts.LED_UPDATE_RATE);
 
-            GLedFader = controller.OpenChannel(SC20260.Timer.Pwm.Controller3.PB0);
+            GLedFader = controller.OpenChannel(IOMap.GLedFader);
             GLedFader.SetActiveDutyCyclePercentage(0.25);
             GLedFader.Start();
-            RLedFader = controller.OpenChannel(SC20260.Timer.Pwm.Controller3.PB1);
+            RLedFader = controller.OpenChannel(IOMap.RLedFader);
             RLedFader.SetActiveDutyCyclePercentage(0.0);
             RLedFader.Start();
         }
