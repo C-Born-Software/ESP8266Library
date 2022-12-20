@@ -5,16 +5,15 @@ using System.Threading;
 //using Microsoft.SPOT;
 using AnodeMeter.Common;
 //using Microsoft.SPOT.Hardware;
-//using PervasiveDigital.Net;
-//using PervasiveDigital.Utilities;
-//using PervasiveDigital.Hardware.ESP8266;
+using System.Diagnostics;
+using PervasiveDigital.Net;
+using PervasiveDigital.Utilities;
+using PervasiveDigital.Hardware.ESP8266;
 
 namespace AnodeMeter.Hardware
 {
     public class WifiTransport : BinaryTransport
     {
-#warning // TODO - Add WiFi back in - DAV
-#if false
         // TODO  DAV - I really don't like the huge payload header used in usb, could  be so much better
         // 20NOV2020  However I'll go along with it in WiFi for now, and may change to something better later
         private const int minRawPacketSize = 200;   // If packets larger than this we add a packet header
@@ -90,13 +89,13 @@ namespace AnodeMeter.Hardware
             //Debug.Print("WiFiControl GetDevice()");
             if (wifi == null)
             {
-                Debug.Print("WiFi Device not operational");
+                Debug.WriteLine("WiFi Device not operational");
                 Globals.WifiDisable = true; //So we don't keep trying...
                 return;
             }
             if (Globals.WifiAPs == null || Globals.Gateways == null || Globals.WifiSyncTime == 0)
             {
-                Debug.Print("WiFi not configured");
+                Debug.WriteLine("WiFi not configured");
                 Globals.WifiDisable = true;
             }
             // === If Wifi is disabled, we only run tests when requested
@@ -163,7 +162,7 @@ namespace AnodeMeter.Hardware
                                     UpdateApList();
                                 wifi.Connect(WifiSSID, WifiPWD);
                                 WifiState = WifiStates.ConnectServer;
-                                Debug.Print("WifiState => ConnectServer");
+                                Debug.WriteLine("WifiState => ConnectServer");
                                 if (Globals.Wifi_AP_Index != APNum)
                                 {
                                     Globals.Wifi_AP_Index = APNum;
@@ -175,7 +174,7 @@ namespace AnodeMeter.Hardware
                             }
                             catch (Exception e)
                             {
-                                Debug.Print("WiFi AP Connect " + TryCount + " Failed: " + e.Message);
+                                Debug.WriteLine("WiFi AP Connect " + TryCount + " Failed: " + e.Message);
                                 //TODO Now we could loop around trying different APs and PWs
 
                                 if (APNum == 1) ++TryCount;
@@ -207,7 +206,7 @@ namespace AnodeMeter.Hardware
                             var addr = myadd[0];
                             var port = myadd.Length > 1 ? Convert.ToInt16(myadd[1]) : 80;
 
-                            Debug.Print("Try Server " + Globals.Gateways[ServerNum]);
+                            Debug.WriteLine("Try Server " + Globals.Gateways[ServerNum]);
 
                             try
                             {
@@ -217,7 +216,7 @@ namespace AnodeMeter.Hardware
                                 {   // TODO - DAV - testing
                                     //Debug.Print("WiFi Unresponsive - fall back");
                                     //WifiState = WifiStates.ConnectAP;
-                                    Debug.Print("WiFi Unresponsive - Restart");
+                                    Debug.WriteLine("WiFi Unresponsive - Restart");
                                     WifiState = WifiStates.Restart;
                                     wifi.ResetPort();
                                     break;
@@ -235,7 +234,7 @@ namespace AnodeMeter.Hardware
                                 // TODO  Quick test - remove/move ASAP
                                 string res = IssueRequest("GetGatewayVersion", null, null, null, 6000);
                                 //                                Globals.WifiInfo["GW Vn:"] = res;
-                                Debug.Print("Connect => " + res);
+                                Debug.WriteLine("Connect => " + res);
                                 var gwvn = res.Split(new Char[] { ':' });
                                 if (gwvn[0] != "Gateway")
                                     throw new Exception("Bad Gateway");
@@ -257,14 +256,14 @@ namespace AnodeMeter.Hardware
                                     FlashWifi.SaveSettings();
                                 }
                                 Globals.WifiInfo["Server"] = Globals.Gateways[ServerNum];
-                                Debug.Print("WifiState => Connected");
+                                Debug.WriteLine("WifiState => Connected");
                                 TryCount = 0;
                             }
                             catch (Exception e)
                             {
                                 //TODO DAV This is expected if server isn't running
                                 if (ServerNum++ == 1) ++TryCount;
-                                Debug.Print("WiFi Server Connect " + TryCount + " Failure: " + e.Message);
+                                Debug.WriteLine("WiFi Server Connect " + TryCount + " Failure: " + e.Message);
                                 if (sock != null)
                                     sock.Dispose();
 
@@ -301,7 +300,7 @@ namespace AnodeMeter.Hardware
                         wifi.Sleep(-1);
 
                         WifiState = WifiStates.ConnectAP;
-                        Debug.Print("WifiState => ConnectAP");
+                        Debug.WriteLine("WifiState => ConnectAP");
                         Thread.Sleep(1000);
                     }
                 }
@@ -326,7 +325,7 @@ namespace AnodeMeter.Hardware
                         wifi.SetPower(false);   //TODO - Could just reset?
                         wifi.Sleep(-1);
                         WifiState = WifiStates.Off;
-                        Debug.Print("WifiState => Off");
+                        Debug.WriteLine("WifiState => Off");
                         wifi.ResetPort();
                     }
                     wakeEvent.WaitOne(1000 * (Globals.WifiTestMode ? 1 : 60), false);
@@ -347,9 +346,8 @@ namespace AnodeMeter.Hardware
                 }
             }
         }
-        #endif
-        public override bool WriteWithTimeout(byte[] Data, int Timeout_ms) { return true; }
-        #if false
+
+        //public override bool WriteWithTimeout(byte[] Data, int Timeout_ms) { return true; }
         public override bool WriteWithTimeout(byte[] Data, int Timeout_ms)
         {
             bool bDone = false;
@@ -380,10 +378,10 @@ namespace AnodeMeter.Hardware
                 }
                 catch (Exception e)
                 {
-                    Debug.Print("Send Fail: " + e.Message);
+                    Debug.WriteLine("Send Fail: " + e.Message);
                     //TODO - handle failure - probably lost connection. Tear down and start again?
                     WifiState = WifiStates.Restart;
-                    Debug.Print("WifiState => Restart");
+                    Debug.WriteLine("WifiState => Restart");
                 }
                 _txOpCompleted = true;
                 _bWritePending = false;
@@ -402,7 +400,7 @@ namespace AnodeMeter.Hardware
             if (args.Data != null)
             {
                 int rxlen = args.Data.Length;
-                Debug.Print("Data Received : " + rxlen);
+                Debug.WriteLine("Data Received : " + rxlen);
                 if (rxlen > 0)
                 {
                     if (bytesExpected > 0)
@@ -411,7 +409,7 @@ namespace AnodeMeter.Hardware
                         Array.Copy(args.Data, 0, _rxBuff, bytesRead, rxlen);
                         bytesExpected -= rxlen;
                         bytesRead += rxlen;
-                        Debug.Print("Received: Partial");
+                        Debug.WriteLine("Received: Partial");
                     }
                     else if (rxlen >= HeaderSize) // Could be a packet with header?
                     {
@@ -424,7 +422,7 @@ namespace AnodeMeter.Hardware
                             bytesExpected = (int)packetSize - bytesRead;
                             _rxBuff = new byte[packetSize];
                             Array.Copy(args.Data, HeaderSize, _rxBuff, 0, bytesRead);
-                            Debug.Print("Received: Payload");
+                            Debug.WriteLine("Received: Payload");
                         }
                         else
                         {
@@ -446,15 +444,14 @@ namespace AnodeMeter.Hardware
                         _rxOpCompleted = true;
                     }
                 }
-                Debug.Print("Received: " + StringUtilities.ConvertToString(args.Data));
+                Debug.WriteLine("Received: " + StringUtilities.ConvertToString(args.Data));
             }
         }
 
         private void sock_SocketClosed(object sender, EventArgs args)
         {
             bytesExpected = bytesRead = 0;
-            Debug.Print("Socket closed: " + ((WifiSocket)sender).Id);
+            Debug.WriteLine("Socket closed: " + ((WifiSocket)sender).Id);
         }
-#endif
     }
 }

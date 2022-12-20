@@ -1,21 +1,16 @@
 ﻿using System;
 using System.IO;
-//using Microsoft.SPOT;
 using System.Text;
 using System.Collections;
 using System.Diagnostics;
 using Hardware.LcdCharacterDisplay;
 using System.Threading;
-//using Microsoft.SPOT.Hardware;
-//using AnodeMeter.Emulator;
-//using AnodeMeter.Common.MeterToPCCommunications;
-//using System.Xml;
 using GHIElectronics.TinyCLR.Data.Xml;
 using GHIElectronics.TinyCLR.Native;
 using System.Reflection;
 using AnodeMeter.Common;
 using AnodeMeter.Hardware;
-//using PervasiveDigital.Utilities;
+using PervasiveDigital.Utilities;
 using AnalogInput = AnodeMeter.Common.AnalogInput;
 
 namespace AnodeMeter
@@ -792,8 +787,8 @@ namespace AnodeMeter
                         _lcd.SetBacklight(0);
                         Debug.WriteLine("Hibernate");
                         //                        if (!Globals.G120)       //TODO DAV - Hibernate crashes G120 on 4.2.10, enable when GHI fixes this
-#warning //TODO - Add ESP3266WiFi back in
-//                        ESP8266WiFi.PowerOff();
+
+                        ESP8266WiFi.PowerOff();
 
                         _sys.Hibernate();
                         //Thread.Sleep(60 * 1000); // For testing

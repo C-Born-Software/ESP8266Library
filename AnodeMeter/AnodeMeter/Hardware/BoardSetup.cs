@@ -15,10 +15,9 @@ using GHIElectronics.TinyCLR.Devices.Storage;
 using AnodeMeter.Common;
 using GHIElectronics.TinyCLR.IO;
 using GHIElectronics.TinyCLR.Update;
-#warning //TODO - Add WiFiTransport back in - DAV
-//using PervasiveDigital.Net;
-//using PervasiveDigital.Utilities;
-//using PervasiveDigital.Hardware.ESP8266;
+using PervasiveDigital.Net;
+using PervasiveDigital.Utilities;
+using PervasiveDigital.Hardware.ESP8266;
 
 namespace AnodeMeter
 {
@@ -124,8 +123,7 @@ namespace AnodeMeter.Hardware
         private static Common.LED _led;
         private static Common.BatteryCharge _bc;
         private static BinaryTransport _gw_usb;
-#warning //TODO - Add WiFiTransport back in - DAV
-//        private static WifiTransport _gw_wifi;
+        private static WifiTransport _gw_wifi;
         private static GpioPin PowerLine = null;
 
         private static HardwareButton LeftButton, RightButton, UpButton, DownButton, CentreButton;
@@ -901,8 +899,6 @@ namespace AnodeMeter.Hardware
                         /* ===================================================
                          * WiFi Status
                          */
-#warning //TODO - Add WiFi back in - DAV
-#if false
                         case MenuTypes.Wifi: // WiFi Settings ===================================================
 
                             switch (MenuItem)
@@ -991,7 +987,7 @@ namespace AnodeMeter.Hardware
                                     break;
                             }
                             break;
-#endif
+
                         case MenuTypes.Exit: // Exit Setup ===================================================
                             PrintScreen("Exit Setup?", SpecialLCDCharacter.Tick + "   <  >");
                             if (CentreButton.click)
@@ -1018,8 +1014,6 @@ namespace AnodeMeter.Hardware
             }
         }
 
-#warning //TODO - Add WiFi back in - DAV
-#if false
         private static bool WaitApList(int secs)
         {
             //var apList = _gw_wifi.apList;
@@ -1036,19 +1030,20 @@ namespace AnodeMeter.Hardware
             }
             return false;
         }
-#endif
+
         // ================= WiFi Test ========================
-#if false
+#warning //TODO - disable WiFi Test?
+#if true
         private static void sock_DataReceived(object sender, SocketReceivedDataEventArgs args)
         {
             var socket = (WifiSocket)sender;
             if (args.Data != null)
             {
-                Debug.Print("Data Received : " + args.Data.Length);
+                Debug.WriteLine("Data Received : " + args.Data.Length);
                 if (args.Data.Length > 0)
                 {
                     var body = StringUtilities.ConvertToString(args.Data);
-                    Debug.Print("Received: " + body);
+                    Debug.WriteLine("Received: " + body);
                     //TODO: Parse the request - here we're just going to reply with a 404
                     // socket.Send("HTTP/1.1 404 NOT FOUND\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
                     // socket.Send("Thanks for <" + body + ">!\r\n");
@@ -1058,7 +1053,7 @@ namespace AnodeMeter.Hardware
 
         private static void sock_SocketClosed(object sender, EventArgs args)
         {
-            Debug.Print("Socket closed: " + ((WifiSocket)sender).Id);
+            Debug.WriteLine("Socket closed: " + ((WifiSocket)sender).Id);
         }
 #endif
         // =================End Wifi Test =====================
@@ -1417,8 +1412,7 @@ namespace AnodeMeter.Hardware
             _bc = bc;
             _ds = ds;
             _gw_usb = gw_usb;
-#warning //TODO - Add WiFi back in - DAV
-            //            _gw_wifi = gw_wifi;
+            _gw_wifi = gw_wifi;
 
             UsbController = UsbClientController.GetDefault();
 
