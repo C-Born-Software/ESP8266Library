@@ -69,7 +69,7 @@ namespace AnodeMeter
         public const int WiFiPowerPin = SC20260.GpioPin.PD4;
         public const int WiFiResetPin = SC20260.GpioPin.PE4;
         public const int WiFiProgramPin = SC20260.GpioPin.PI4;
-        public const string WiFiComPort = "COM3";
+        public const string WiFiComPort = SC20260.UartPort.Uart6; //"COM3";
 
 #if false
         public static void SetG120()

@@ -70,23 +70,6 @@
     <Compile Include="Hardware\PhysicalLED.cs" />
     <Compile Include="Hardware\UsbTransport.cs" />
     <Compile Include="Hardware\WifiTransport.cs" />
-    <Compile Include="Hardware\Wifi\ESP8266\AccessPoint.cs" />
-    <Compile Include="Hardware\Wifi\ESP8266\AccessPointClient.cs" />
-    <Compile Include="Hardware\Wifi\ESP8266\Ecn.cs" />
-    <Compile Include="Hardware\Wifi\ESP8266\Esp8266Serial.cs" />
-    <Compile Include="Hardware\Wifi\ESP8266\Esp8266WifiDevice.cs" />
-    <Compile Include="Hardware\Wifi\ESP8266\Exceptions.cs" />
-    <Compile Include="Hardware\Wifi\ESP8266\OperatingMode.cs" />
-    <Compile Include="Hardware\Wifi\ESP8266\WifiSocket.cs" />
-    <Compile Include="Hardware\Wifi\Net\INetworkAdapter.cs" />
-    <Compile Include="Hardware\Wifi\Net\ISocket.cs" />
-    <Compile Include="Hardware\Wifi\Net\IWifiAdapter.cs" />
-    <Compile Include="Hardware\Wifi\Utility\CircularBuffer.cs" />
-    <Compile Include="Hardware\Wifi\Utility\Conversion.cs" />
-    <Compile Include="Hardware\Wifi\Utility\FormatException.cs" />
-    <Compile Include="Hardware\Wifi\Utility\StringExtensions.cs" />
-    <Compile Include="Hardware\Wifi\Utility\StringUtilities.cs" />
-    <Compile Include="Hardware\Wifi\Utility\ThreadPool.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Common\SmelterDetails.cs" />
@@ -153,7 +136,12 @@
       <HintPath>..\packages\GHIElectronics.TinyCLR.Update.2.2.0.5000\lib\net452\GHIElectronics.TinyCLR.Update.dll</HintPath>
     </Reference>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="..\ESP8266Library\ESP8266Library.csproj">
+      <Project>{BE29B5BF-549D-4759-8063-1215C04D358F}</Project>
+      <Name>ESP8266Library</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
