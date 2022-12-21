@@ -7,6 +7,7 @@ using Hardware.LcdCharacterDisplay;
 using System.Threading;
 using GHIElectronics.TinyCLR.Data.Xml;
 using GHIElectronics.TinyCLR.Native;
+using GHIElectronics.TinyCLR.Update;
 using System.Reflection;
 using AnodeMeter.Common;
 using AnodeMeter.Hardware;
@@ -1148,7 +1149,7 @@ namespace AnodeMeter
                 "System Starting. Cause: \"" + _sys.GetStartCause() + "\"", "");
             Logging.IssueEvent(Logging.ErrSeverity.Informational, "AnodeMeter::SetupMeterType",
                 "Startup Serial: " + Globals.Serial + " Name: " + Assembly.GetExecutingAssembly().FullName + " FW: " +
-                DeviceInformation.Version.ToString() + " Board: SC20260",
+                DeviceInformation.Version.ToVersionString() + " Board: SC20260",
                 "Serial: " + Globals.Serial);
 
             MeterNumber = _sys.GetMeterNumber;

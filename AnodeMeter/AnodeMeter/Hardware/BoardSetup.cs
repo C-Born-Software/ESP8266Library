@@ -12,9 +12,9 @@ using GHIElectronics.TinyCLR.Pins;
 using GHIElectronics.TinyCLR.Devices.Rtc;
 using GHIElectronics.TinyCLR.Native;
 using GHIElectronics.TinyCLR.Devices.Storage;
-using AnodeMeter.Common;
 using GHIElectronics.TinyCLR.IO;
 using GHIElectronics.TinyCLR.Update;
+using AnodeMeter.Common;
 using PervasiveDigital.Net;
 using PervasiveDigital.Utilities;
 using PervasiveDigital.Hardware.ESP8266;
@@ -70,44 +70,6 @@ namespace AnodeMeter
         public const int WiFiResetPin = SC20260.GpioPin.PE4;
         public const int WiFiProgramPin = SC20260.GpioPin.PI4;
         public const string WiFiComPort = SC20260.UartPort.Uart6; //"COM3";
-
-#if false
-        public static void SetG120()
-        {
-
-            // Override with G120 Mappings where necessary
-
-            // LCD Display
-            RS = GHI.Hardware.G120.Pin.P1_0;
-            Enable = GHI.Hardware.G120.Pin.P1_1;
-            LCD_Data_4 = GHI.Hardware.G120.Pin.P4_29;
-            LCD_Data_5 = GHI.Hardware.G120.Pin.P4_28;
-            LCD_Data_6 = GHI.Hardware.G120.Pin.P0_4;
-            LCD_Data_7 = GHI.Hardware.G120.Pin.P0_5;
-
-            // 3.3V Power control
-            PowerLine = GHI.Hardware.G120.Pin.P1_15;
-
-            // Buttons
-            UpButton = GHI.Hardware.G120.Pin.P0_22;
-            DownButton = GHI.Hardware.G120.Pin.P2_10;
-            CentreButton = GHI.Hardware.G120.Pin.P2_3;
-            LeftButton = GHI.Hardware.G120.Pin.P0_23;
-            RightButton = GHI.Hardware.G120.Pin.P0_25;
-
-            // PWM Channels
-            BackLight = Cpu.PWMChannel.PWM_2;
-            GLedFader = Cpu.PWMChannel.PWM_7;
-            RLedFader = Cpu.PWMChannel.PWM_6;
-
-            // Analog Inputs
-            VBatt = Cpu.AnalogChannel.ANALOG_1;
-            VRef2p5 = Cpu.AnalogChannel.ANALOG_5;
-
-            // Analog Outputs
-            LCDBias = Cpu.AnalogOutputChannel.ANALOG_OUTPUT_0;
-        }
-#endif
     }
 }
 
@@ -570,7 +532,7 @@ namespace AnodeMeter.Hardware
 
                                     break;
                                 case MenuItems.infoFirmware:    // Board type and firmware version
-                                    PrintScreen("Board: SitCore  ","FW:    " + DeviceInformation.Version.ToString());
+                                    PrintScreen("Board:" + DeviceInformation.DeviceName,"FW:   " + DeviceInformation.Version.ToVersionString());
                                     break;
                                 case MenuItems.infoBuiltOn: // Build date from version string
                                     //DateTime d = GetBuildDate();
@@ -1176,13 +1138,6 @@ namespace AnodeMeter.Hardware
 
         public static void PowerOff()
         {
-            // Old Meter setup
-            // OutputPort PwrDown = new OutputPort((Cpu.Pin)GHI.Hardware.EMX.Pin.IO31, false);
-
-            // New Meter Hardware [This isn't needed, the original power-down circuit still works - DAV]
-            // OutputPort opLeft = new OutputPort((Cpu.Pin)GHI.Hardware.EMX.Pin.IO23, false);
-            // OutputPort opRight = new OutputPort((Cpu.Pin)GHI.Hardware.EMX.Pin.IO1, false);
-
             Power(false);
         }
 
@@ -1542,7 +1497,7 @@ namespace AnodeMeter.Hardware
      * DAV  9AUG13
      *      10AUG13 Updated to require subdirectory for firmware files)
     */
-
+ 
     public class FieldUpdate
     {
         static string Path;
@@ -1559,19 +1514,15 @@ namespace AnodeMeter.Hardware
         {
             //string s = DeviceInformation.DeviceName + " Version: " + DeviceInformation.Version.ToString();
             //Debug.WriteLine(s);
-            ulong vn = DeviceInformation.Version;
-            var v1 = vn >> 48;
-            var v2 = (vn >> 32) & 0x0ffff;
-            var v3 = (vn >> 16) & 0x0ffff;
-            var v4 = vn & 0x0ffff;
-            Debug.WriteLine("Version: " + v1 + "." + v2 + "." + v3 + "." + v4);
 
+            Debug.WriteLine("Version: " + DeviceInformation.Version.ToVersionString());
+               
             string[] Files;
             //Path = @"SD\Updates\" + (Globals.G120 ? "G120" : "EMX") + @"\";
             Path = @"\Updates\" + "SC20" + @"\";
             //AppBase = "app_" + SystemInfo.Version.ToString();
             //AppBase = "app_" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-            AppBase = "app_" + v1 + "." + v2 + "." + v3 + "." + v4;
+            AppBase = "app_" + DeviceInformation.Version.ToVersionString();
             int AppBaseLen = AppBase.Length;
 
             HaveFW = false;

@@ -351,5 +351,15 @@ namespace AnodeMeter.Common
             //return result.ToArray(); // Return array of all strings
             return (string[])result.ToArray(typeof(string));
         }
+        // Note that this is our own local variant based on a ulong, not the InField versionbased on a uint
+        public static string ToVersionString(this ulong vn)
+        {
+            /*var v1 = vn >> 48;
+              var v2 = (vn >> 32) & 0x0ffff;
+              var v3 = (vn >> 16) & 0x0ffff;
+              var v4 = vn & 0x0ffff;
+              return v1 + "." + v2 + "." + v3 + "." + v4; */
+            return ((vn >> 48) + "." + ((vn >> 32) & 0x0ffff) + "." + ((vn >> 16) & 0x0ffff) + "." + (vn & 0x0ffff));
+        }
     }
 }
