@@ -16,8 +16,30 @@ using GHIElectronics.TinyCLR.Devices.Storage;
 using GHIElectronics.TinyCLR.Data.Xml;
 using GHIElectronics.TinyCLR.Cryptography;
 
+
 namespace AnodeMeter.Common
 {
+
+    public class FStream : FileStream
+    {
+        public FStream(string path, FileMode mode)
+            : this(path, mode, (mode == FileMode.Append) ? FileAccess.Write : FileAccess.ReadWrite, FileShare.Read, 0)
+        {
+        }
+        public FStream(string path, FileMode mode, FileAccess access)
+            : this(path, mode, access, FileShare.Read, 0)
+        { }
+        public FStream(string path, FileMode mode, FileAccess access, FileShare share)
+            : this(path, mode, access, share, 0)
+        {
+        }
+        public FStream(string path, FileMode mode, FileAccess access, FileShare share, int bufferSize)
+            :  base((Globals.SDCardPresent == false) ? null : path, mode, access, share, bufferSize)
+        {
+            if (Globals.SDCardPresent == false)
+                throw new IOException("No SD Card");
+        }
+    }
     public class DataStore
     {
 
@@ -151,7 +173,7 @@ namespace AnodeMeter.Common
                 if (fi != null)
                 {
                     byte[] buff = new byte[(int)fi.Length];
-                    FileStream fs = new FileStream(FileDefs.ScheduleResultsNew, FileMode.Open, FileAccess.Read);
+                    FStream fs = new FStream(FileDefs.ScheduleResultsNew, FileMode.Open, FileAccess.Read);
 
                     fs.Read(buff, 0, buff.Length);
 
@@ -285,10 +307,10 @@ namespace AnodeMeter.Common
         }
         private void WriteFile(string fName, byte[] buff, bool append = false)
         {
-            FileStream fs = null;
+            FStream fs = null;
             try
             {
-                fs = new FileStream(fName, append ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None);
+                fs = new FStream(fName, append ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None);
                 fs.Write(buff, 0, buff.Length);
                 fs.Flush();
                 fs.Close();
@@ -395,13 +417,13 @@ namespace AnodeMeter.Common
             if (IsLocked) return null;
 
             byte[] buff = null;
-            FileStream fs = null;
+            FStream fs = null;
 
             try
             {
                 if (FileExists(fName))
                 {
-                    fs = new FileStream(fName, FileMode.Open, FileAccess.Read);
+                    fs = new FStream(fName, FileMode.Open, FileAccess.Read);
                     buff = new byte[(int)fs.Length];
                     fs.Read(buff, 0, buff.Length);
                 }
@@ -422,7 +444,7 @@ namespace AnodeMeter.Common
         {
             bool bOK = false;
             string thisLog = "";
-            FileStream fs = null;
+            FStream fs = null;
 
             try
             {
@@ -442,7 +464,7 @@ namespace AnodeMeter.Common
                     FileInfo fi = new FileInfo(thisLog);
                     if (fi.Length != 0)
                     {
-                        fs = new FileStream(thisLog, FileMode.Open, FileAccess.Read);
+                        fs = new FStream(thisLog, FileMode.Open, FileAccess.Read);
                         sr = new StreamReader(fs);
                         endOfFile = false;
 
@@ -770,10 +792,10 @@ namespace AnodeMeter.Common
 #if (CREATE_TST_DATA)
                 ForTestingCreateConfigFile(FileDefs.SystemConfigFile);
 #endif
-            FileStream fs = null;
+            FStream fs = null;
             try
             {
-                fs = new FileStream(FileDefs.SystemConfigFile, FileMode.Open);
+                fs = new FStream(FileDefs.SystemConfigFile, FileMode.Open);
             }
             catch (Exception ex)
             {
@@ -785,10 +807,10 @@ namespace AnodeMeter.Common
 
         public Stream OpenDeviceConfiguration()
         {
-            FileStream fs = null;
+            FStream fs = null;
             try
             {
-                fs = new FileStream(FileDefs.DeviceConfigFile, FileMode.Open);
+                fs = new FStream(FileDefs.DeviceConfigFile, FileMode.Open);
             } catch(Exception ex)
             {
                 Debug.WriteLine("OpenDeviceConfiguration Error: " + ex.Message);
@@ -862,14 +884,14 @@ namespace AnodeMeter.Common
         public static bool UpdateXmlValue(string UniqueTagName, string NewTagValue)
         {
             bool bOK = false;
-            FileStream fs = null;
+            FStream fs = null;
             try
             {
                 FileInfo fi = new FileInfo(FileDefs.SystemConfigFile);
                 byte[] buff = new byte[(int)fi.Length];
                 fi = null;
 
-                fs = new FileStream(FileDefs.SystemConfigFile, FileMode.Open, FileAccess.Read);
+                fs = new FStream(FileDefs.SystemConfigFile, FileMode.Open, FileAccess.Read);
                 fs.Read(buff, 0, buff.Length);
                 string contents = new string(Encoding.UTF8.GetChars(buff));
                 fs.Close();
@@ -884,7 +906,7 @@ namespace AnodeMeter.Common
                     if ((endIndex = contents.IndexOf('\"', startIndex + 1)) != -1)
                     {
                         string newContents = contents.Substring(0, startIndex + 1) + NewTagValue + contents.Substring(endIndex, contents.Length - endIndex);
-                        fs = new FileStream(FileDefs.SystemConfigFile, FileMode.Open, FileAccess.Write);
+                        fs = new FStream(FileDefs.SystemConfigFile, FileMode.Open, FileAccess.Write);
                         buff = Encoding.UTF8.GetBytes(newContents);
                         fs.Write(buff, 0, buff.Length);
                         fs.Close();

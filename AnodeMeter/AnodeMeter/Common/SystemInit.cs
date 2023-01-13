@@ -29,12 +29,12 @@ namespace AnodeMeter.Common
 
         public virtual void InitOnStart()
         {
-            FileStream s = null;
+            FStream s = null;
             XmlReader xml = null;
 
             try
             {
-                s = new FileStream(FileDefs.DeviceConfigFile, FileMode.Open, FileAccess.Read);
+                s = new FStream(FileDefs.DeviceConfigFile, FileMode.Open, FileAccess.Read);
 
                 xml = XmlReader.Create(s);
                 bool bDeviceConfigFound = false;

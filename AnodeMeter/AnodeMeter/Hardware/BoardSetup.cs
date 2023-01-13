@@ -1617,7 +1617,7 @@ namespace AnodeMeter.Hardware
                     // App matches current firmware. Just load new application
                     BoardSetup.PrintScreen("Loading App...", "");
                     Thread.Sleep(400);
-                    var filestreamApp = new FileStream(Path + AppName, FileMode.Open);
+                    var filestreamApp = new FStream(Path + AppName, FileMode.Open);
                     var updater = new ApplicationUpdate(filestreamApp, appKey);
                     var applicationVersion = updater.Verify();
                     //updater.ActivityPin = indicatorPin; // optional
@@ -1637,8 +1637,8 @@ namespace AnodeMeter.Hardware
 
                     var dataChunk = new byte[1 * 1024]; // must be multiple of 1K
 
-                    var filestreamApp = new FileStream(Path + AppName, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    var filestreamFw = new FileStream(fw, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    var filestreamApp = new FStream(Path + AppName, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    var filestreamFw = new FStream(fw, FileMode.Open, FileAccess.Read, FileShare.Read);
 
                     // Buffer application
                     var idxApp = 0;

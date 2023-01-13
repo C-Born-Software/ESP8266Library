@@ -40,7 +40,7 @@ namespace AnodeMeter.Common
 
                 try
                 {
-                    FileStream log = new FileStream(Folders.LogsPath + "\\" + DateTime.Now.ToString("yyyy-MM-dd") + "SystemLog.txt", FileMode.Append, FileAccess.Write);
+                    FStream log = new FStream(Folders.LogsPath + "\\" + DateTime.Now.ToString("yyyy-MM-dd") + "SystemLog.txt", FileMode.Append, FileAccess.Write);
                     WriteOutput(log, buff);
                     log.Close();
                 }
@@ -88,9 +88,12 @@ namespace AnodeMeter.Common
             {
                 if (_outPut == null)
                 {
-                    FileStream log = new FileStream(Folders.LogsPath + "\\" + DateTime.Now.ToString("yyyy-MM-dd") + "SystemLog.txt", FileMode.Append, FileAccess.Write);
-                    WriteOutput(log, buff);
-                    log.Close();
+                    if (Globals.SDCardPresent)
+                    {
+                        FStream log = new FStream(Folders.LogsPath + "\\" + DateTime.Now.ToString("yyyy-MM-dd") + "SystemLog.txt", FileMode.Append, FileAccess.Write);
+                        WriteOutput(log, buff);
+                        log.Close();
+                    }
                 }
                 else
                     WriteOutput(_outPut, buff);
@@ -128,7 +131,7 @@ namespace AnodeMeter.Common
 
                         try
                         {
-                            FileStream log = new FileStream(Folders.LogsPath + "\\" + DateTime.Now.ToString("yyyy-MM-dd") + "_RawData.txt", FileMode.Append, FileAccess.Write);
+                            FStream log = new FStream(Folders.LogsPath + "\\" + DateTime.Now.ToString("yyyy-MM-dd") + "_RawData.txt", FileMode.Append, FileAccess.Write);
                             WriteOutput(log, buff);
                             log.Close();
                         }

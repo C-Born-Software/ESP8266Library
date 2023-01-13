@@ -38,20 +38,24 @@ namespace AnodeMeter.Hardware
             {
                 //GLedFader.DutyCycle = (double)Globals.GLedBright / 100;
                 GLedFader.SetActiveDutyCyclePercentage((double)Globals.GLedBright / 100);
-                GLedFader.Start();
-                RLedFader.Stop();
+                //GLedFader.Start();
+                //RLedFader.Stop();
+                RLedFader.SetActiveDutyCyclePercentage(0);
             }
             else if (state._redPercent > 0)
             {
                 //RLedFader.DutyCycle = (double)Globals.RLedBright / 100;
                 RLedFader.SetActiveDutyCyclePercentage((double)Globals.RLedBright / 100);
-                RLedFader.Start();
-                GLedFader.Stop();
+                //RLedFader.Start();
+                //GLedFader.Stop();
+                GLedFader.SetActiveDutyCyclePercentage(0);
             }
             else
             {
-                GLedFader.Stop();
-                RLedFader.Stop();
+                //GLedFader.Stop();
+                //RLedFader.Stop();
+                RLedFader.SetActiveDutyCyclePercentage(0);
+                GLedFader.SetActiveDutyCyclePercentage(0);
             }
         }
     }
