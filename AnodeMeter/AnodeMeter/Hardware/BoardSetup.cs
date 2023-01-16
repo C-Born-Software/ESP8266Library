@@ -14,6 +14,7 @@ using GHIElectronics.TinyCLR.Native;
 using GHIElectronics.TinyCLR.Devices.Storage;
 using GHIElectronics.TinyCLR.IO;
 using GHIElectronics.TinyCLR.Update;
+using GHIElectronics.TinyCLR.Native;
 using AnodeMeter.Common;
 using PervasiveDigital.Net;
 using PervasiveDigital.Utilities;
@@ -638,6 +639,16 @@ namespace AnodeMeter.Hardware
                                         PowerOff("", 1);
                                         break;
                                     }
+#if false   // DAV - Used for testing Hibernate - seems to work!
+                                    if (CentreButton.held)
+                                    {
+                                        MenuItem = 0;
+                                        MenuStep = 0;
+                                        Thread.Sleep(1000);
+                                        GHIElectronics.TinyCLR.Native.Power.Sleep(DateTime.Now.AddMinutes(1));
+                                        break;
+                                    }
+#endif
                                     if (RightButton.held)
                                     {
                                         MenuItem = MenuItems.supporSetSerial;
@@ -1139,6 +1150,7 @@ namespace AnodeMeter.Hardware
         public static void PowerOff()
         {
             Power(false);
+            Thread.Sleep(1000);
         }
 
         public static void Power(bool State)
@@ -1570,15 +1582,23 @@ namespace AnodeMeter.Hardware
                                         string sdkpath = Path + "SDK_" + d + @"\";
                                         if (Directory.Exists(sdkpath))
                                         {
-                                            fw = sdkpath + "Firmware.ghi";
-
-                                            if (File.Exists(fw)) // && File.Exists(fw2) && File.Exists(config))
+                                            string [] FWFiles = Directory.GetFiles(sdkpath);
+                                            foreach (string f in FWFiles)
                                             {
-                                                HaveFW = true;
-                                                return;
+                                                //fw = sdkpath + "Firmware.ghi";
+                                                if(f.Right(4).ToLower() == ".ghi")
+//                                                if (MatchFile(f, "", "ghi"))
+                                                {
+                                                    if (File.Exists(f))
+                                                    {
+                                                        fw = f;
+                                                        HaveFW = true;
+                                                        return;
+                                                    }
+                                                    else
+                                                        fw = null;
+                                                }
                                             }
-                                            else
-                                                fw = null;
                                         }
                                     }
                                 }

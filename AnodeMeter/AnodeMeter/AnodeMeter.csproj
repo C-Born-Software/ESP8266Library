@@ -123,6 +123,9 @@
     <Reference Include="GHIElectronics.TinyCLR.IO, Version=2.2.0.5000, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\GHIElectronics.TinyCLR.IO.2.2.0.5000\lib\net452\GHIElectronics.TinyCLR.IO.dll</HintPath>
     </Reference>
+    <Reference Include="GHIElectronics.TinyCLR.IO.TinyFileSystem, Version=2.2.0.5000, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\GHIElectronics.TinyCLR.IO.TinyFileSystem.2.2.0.5000\lib\net452\GHIElectronics.TinyCLR.IO.TinyFileSystem.dll</HintPath>
+    </Reference>
     <Reference Include="GHIElectronics.TinyCLR.Native, Version=2.2.0.5000, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\GHIElectronics.TinyCLR.Native.2.2.0.5000\lib\net452\GHIElectronics.TinyCLR.Native.dll</HintPath>
     </Reference>

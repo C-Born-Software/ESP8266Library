@@ -27,6 +27,12 @@ namespace AnodeMeter
             switch (Program.MeterType)
             {
                 case AnodeMeterType.GHI:
+                    // Extend heap if not already done. System will reset if this is required
+                    if (GHIElectronics.TinyCLR.Native.Memory.IsExtendedHeap() == false)
+                    {
+                        GHIElectronics.TinyCLR.Native.Memory.ExtendHeap();
+                        GHIElectronics.TinyCLR.Native.Power.Reset();
+                    }
                     AM.Run();
                     break;
             }

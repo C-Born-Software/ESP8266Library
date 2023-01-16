@@ -483,6 +483,12 @@ namespace AnodeMeter
                 ParseBattLog();
 
                 Debug.WriteLine("DateTimeMinute=" + DateTime.Now.Minute.ToString() + "  Minute=" + Minute.ToString());
+                /*
+                var freeRam = GHIElectronics.TinyCLR.Native.Memory.ManagedMemory.FreeBytes;
+                var usedRam = GHIElectronics.TinyCLR.Native.Memory.ManagedMemory.UsedBytes;
+                Debug.WriteLine("Free: " + freeRam.ToString());
+                Debug.WriteLine("Used: " + usedRam.ToString());
+                */
             }
             
             if (Globals.WifiSyncTime > 0)
@@ -542,11 +548,14 @@ namespace AnodeMeter
         {
             Profile.DebugTime("Start Flash Read"); //TODO DAV DEBUG
             string Result = "";
+            bool FlashLoaded = FlashSettings.Reload();
+            /*
             FlashSettings.FactoryDefaults fd = new FlashSettings.FactoryDefaults();
             Globals.BackLightLevel = fd.BackLightLevel;
             Globals.GLedBright = fd.GLedBright;
             Globals.RLedBright = fd.RLedBright;
             Globals.LCDBiasPC = fd.LCDBiasPC;
+            */
 
             Profile.DebugTime("Flash Settings Loaded"); //TODO DAV DEBUG
 
@@ -635,6 +644,8 @@ namespace AnodeMeter
                                 break;
                         }
                     }
+                    if(!FlashLoaded)
+                        FlashSettings.SaveSettings();
                 }
                 else
                     throw new Exception("Factory Defaults file on SD is empty.");
@@ -2635,7 +2646,6 @@ namespace AnodeMeter
 
         }
 
-
         private void ClearMenuDisplay(int DisplayToClear)
         {
             string MenuToDisplay;
@@ -2653,5 +2663,6 @@ namespace AnodeMeter
 
         }
         private string FormatMeasurement(double Measurement) { return Measurement.ToString(_plant.GetMeasurementDisplayString()); }
+
     }
  }

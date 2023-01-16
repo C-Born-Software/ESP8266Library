@@ -196,8 +196,13 @@ namespace AnodeMeter.Common
                     if (!HasMsg) _messageExpiry = DateTime.MinValue;
                 }
 
-
-                UpdateDisplay();
+                try
+                {
+                    UpdateDisplay();
+                } catch(Exception e)
+                {
+                    ReInit();
+                }
 
                 Thread.Sleep(GlobalConsts.DISPLAY_UPDATE_RATE);
             }
