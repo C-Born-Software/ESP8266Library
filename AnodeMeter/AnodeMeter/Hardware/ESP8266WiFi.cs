@@ -53,14 +53,16 @@ namespace AnodeMeter.Hardware
         public static void PowerOn()
         {
             Init();
-            _wifi.SetPower(true);
+            _wifi?.SetPower(true);
 //            _rfPower.Write(true); // Power on ESP module
         }
         
-        public static void PowerOff()
+        public static void PowerOff(bool Hard = false)
         {
             Init();
-            _wifi.SetPower(false);
+            _wifi?.SetPower(false);
+            if (Hard)
+                _rfPower?.Write(false);
 //            _rfPower.Write(false); // Power off ESP module
         }
 

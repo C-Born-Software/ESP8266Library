@@ -24,7 +24,7 @@ namespace AnodeMeter.Common
             }
 
         }
-        public virtual void Hibernate() {; }
+        public virtual void Hibernate(int seconds = 60 * 60) {; }
         public abstract void Close();
 
         public virtual void InitOnStart()

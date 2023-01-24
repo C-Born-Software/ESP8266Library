@@ -1,13 +1,4 @@
 ﻿using System;
-//using Microsoft.SPOT;
-//using GHI.Premium.Hardware.LowLevel;
-//using GHI.IO;
-//using GHI.IO.Storage;
-//using GHI.Utilities;
-//using GHI.Usb.Client;
-//using GHI.Processor;
-//using GHI.Premium.Hardware;
-//using Microsoft.SPOT.Hardware;
 using AnodeMeter.Common;
 using Hardware.LcdCharacterDisplay;
 using GHIElectronics.TinyCLR.Native;
@@ -16,6 +7,8 @@ using GHIElectronics.TinyCLR.Pins;
 using GHIElectronics.TinyCLR.Devices.Adc;
 using GHIElectronics.TinyCLR.Devices.Storage;
 using System.Diagnostics;
+using GHIElectronics.TinyCLR.Devices.Rtc.Provider;
+using GHIElectronics.TinyCLR.Devices.Rtc;
 
 namespace AnodeMeter.Hardware
 {
@@ -26,7 +19,7 @@ namespace AnodeMeter.Hardware
         
         //private OutputPort _SELI = null;
 
-        private static AnodeMeter Meter = null;
+        public static AnodeMeter Meter = null;
         public ConfigureSystem(AnodeMeter parent)
         {
             Meter = parent;
@@ -41,19 +34,6 @@ namespace AnodeMeter.Hardware
         {
 #warning //TODO Set up Glitch Filter (now per GPIO, or still CPU? Find out...
 //            Cpu.GlitchFilterTime = new TimeSpan(TimeSpan.TicksPerMillisecond * 200);
-
-#if (!EMULATOR)
-            // We want to use some LCD pins, so set configuration to Headless.
-            // This requires a reset to take effect. We only reset if the state had to be changed
-
-#if (MF_FRAMEWORK_VERSION_V4_3)
-            if(Display.Disable())
-                PowerState.RebootDevice(false, 1000);
-#else
-            //if(GHI.Premium.Hardware.Configuration.LCD.Set(Configuration.LCD.HeadlessConfig))
-            //    PowerState.RebootDevice(false, 1000);
-#endif
-#endif
 
             Profile.DebugTime("IO Mapped"); //TODO DAV DEBUG
             // We do an early read of the analog input here to give it time to settle
@@ -157,7 +137,7 @@ namespace AnodeMeter.Hardware
                 }
             }
         }
-        public override void Hibernate()
+        public override void Hibernate(int seconds = 60 * 60)
         {
             // Hibernate, wake up on button push, or RTC alarm
             //Power.Hibernate(Power.WakeUpInterrupt.InterruptInputs); 
@@ -170,8 +150,10 @@ namespace AnodeMeter.Hardware
             //TODO DAV Fixed Wakeup for 4.3 and RTC!!
             ///PowerState.WakeupEvents |= (HardwareEvent.OEMReserved1 | HardwareEvent.OEMReserved2);
             ///PowerState.Sleep(SleepLevel.DeepSleep, HardwareEvent.OEMReserved1 | HardwareEvent.OEMReserved2);
-
-            Power.Sleep(DateTime.Now.AddMinutes(60));
+            var rtc = RtcController.GetDefault();
+            Power.Sleep(rtc.Now.AddSeconds(seconds));
+            Debug.WriteLine("Slept for " + (rtc.Now - DateTime.Now).TotalSeconds + " Seconds");
+            SystemTime.SetTime(rtc.Now);
         }
     }
 }

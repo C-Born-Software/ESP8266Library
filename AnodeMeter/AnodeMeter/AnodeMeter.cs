@@ -788,45 +788,52 @@ namespace AnodeMeter
                         if (_gw_wifi != null)
                             _gw_wifi.SetWifi(BinaryTransport.WifiStates.Off);   //TODO DAV We could/should Suspend() or Sleep() here?
 
-                        _lcd.ShowTimedMessage("In Stand-By", GlobalConsts.HOUSE_KEEPING_CHECK_SECONDS * 2);
+                        //_lcd.ShowTimedMessage("In Stand-By", GlobalConsts.HOUSE_KEEPING_CHECK_SECONDS * 2);
                         _bWaitingToHibernate = true;
                     }
                     else
                     {
-                        // Time to Sleep
-                        DateTime SleepStart = DateTime.Now;
-                        //_ds.WriteBattLog("Sleep@" + SleepStart.ToString());
-                        _lcd.SetBacklight(0);
-                        Debug.WriteLine("Hibernate");
-                        //                        if (!Globals.G120)       //TODO DAV - Hibernate crashes G120 on 4.2.10, enable when GHI fixes this
-
-                        ESP8266WiFi.PowerOff();
-
-                        _sys.Hibernate();
-                        //Thread.Sleep(60 * 1000); // For testing
-                        // TODO DAV - Remove this when GHI fixes SDK4.3
-                        _lcd.FixIO();
-                        Debug.WriteLine("Awaken");
-                        _tm.RefreshSystemTime();
-
-                        TimeSpan tmDiff = DateTime.Now - SleepStart;
-                        long secs = (DateTime.Now - SleepStart).Ticks / TimeSpan.TicksPerSecond;
-                        //_ds.WriteBattLog("Wake@" + DateTime.Now.ToString() + " (After " + secs + " Seconds)");
-                        Globals.RefTimer += (int)secs; // Adjust RefTimer but not RunTimer
-
-                        //_threadsCollection.RegisterResumeFromHibernate();
-                        dtIgnoreButtonsUntil = DateTime.Now + new TimeSpan(TimeSpan.TicksPerSecond * 2);
-                        RegisterActivity();
-                        _lcd.SetBacklight(Globals.BackLightLevel);
-                        _lcd.ReInit();
-                        // If we have been hibernating for >59 minutes (selectable later?) then may as well power off
-                        if (secs > (60 * 59) && (_bsp != null))
-                            _bsp.PowerOff("Power Off", 15);
+                        DoHibernate();
                     }
                 }
             }
         }
 
+        public void QuickNap(int seconds)
+        {
+            _sys.Hibernate(seconds);
+        }
+        public void DoHibernate(int ShutDownAfterMinutes = 59)
+        {
+            // Time to Sleep
+            _lcd.ShowTimedMessage("In Stand-By", 2);
+            Thread.Sleep(500);
+            DateTime SleepStart = DateTime.Now;
+            _lcd.SetBacklight(0);
+            Debug.WriteLine("Hibernate");
+
+            ESP8266WiFi.PowerOff(true);
+
+            _sys.Hibernate();
+
+            // TODO DAV - Remove this when GHI fixes SDK4.3
+            _lcd.FixIO();
+            Debug.WriteLine("Awaken");
+            _tm.RefreshSystemTime();
+
+            TimeSpan tmDiff = DateTime.Now - SleepStart;
+            long secs = (DateTime.Now - SleepStart).Ticks / TimeSpan.TicksPerSecond;
+            Globals.RefTimer += (int)secs; // Adjust RefTimer but not RunTimer
+
+            dtIgnoreButtonsUntil = DateTime.Now + new TimeSpan(TimeSpan.TicksPerSecond * 2);
+            RegisterActivity();
+            _lcd.SetBacklight(Globals.BackLightLevel);
+            _lcd.ReInit();
+
+            // If we have been hibernating for >x (default  59) minutes (selectable later?) then may as well power off
+            if ((ShutDownAfterMinutes > 0) &&  (secs > (60 * ShutDownAfterMinutes)) && (_bsp != null))
+                _bsp.PowerOff("Power Off", 15);
+        }
         private void HousekeepingWhileConnected()
         {
             if (_previousHouseKeepingPassFinished)

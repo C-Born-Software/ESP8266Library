@@ -16,6 +16,7 @@ using GHIElectronics.TinyCLR.IO;
 using GHIElectronics.TinyCLR.Update;
 using GHIElectronics.TinyCLR.Native;
 using AnodeMeter.Common;
+using AnodeMeter;
 using PervasiveDigital.Net;
 using PervasiveDigital.Utilities;
 using PervasiveDigital.Hardware.ESP8266;
@@ -103,7 +104,7 @@ namespace AnodeMeter.Hardware
             setTopLevel = 0, setBackLight, setGreenLED, setRedLED, setLCDBias, setClock, setMeasMode, setLogRawData, setSave, setLoad, setAutoScan = 100,
             infoTopLevel = 0, infoBatt, infoInput, infoFirmware, infoBuiltOn, infoSDCard, infoSerial,
             modeTopLevel = 0, modeDiskDrive = 2,
-            supportTopLevel = 0, supportPowerOff, supportBattTest, supportIFU, supportEraseID, supporSetSerial = 100,
+            supportTopLevel = 0, supportPowerOff,supportHibernate, supportBattTest, supportIFU, supportEraseID, supporSetSerial = 100,
             wifiTopLevel = 0, wifiStatus, wifiInfo, wifiScan, wifiTop,
             exitTopLevel = 0
         };
@@ -655,6 +656,18 @@ namespace AnodeMeter.Hardware
                                         MenuStep = 0;
                                     }
                                     break;
+                                case MenuItems.supportHibernate: // Test hibernate
+                                    PrintScreen("Test Hibernate", SpecialLCDCharacter.Tick);
+                                    if (CentreButton.click)
+                                    {
+                                        PrintScreen("Sleeping...","");
+                                        Thread.Sleep(1000);
+                                        ConfigureSystem.Meter?.DoHibernate();
+                                        PrintScreen("Awake!", "");
+                                        Thread.Sleep(1000);
+                                        break;
+                                    }
+                                    break;
                                 case MenuItems.supportBattTest:
                                     switch (MenuStep)
                                     {
@@ -1059,7 +1072,7 @@ namespace AnodeMeter.Hardware
 
                     // For TinyCLR // TODO DAV Pass constructor with C-Born ID next...
                     //ms.Enable();
-
+                    ConfigureSystem.Meter?.QuickNap(1);
                     StartMs();
                 }
                 catch (Exception ex)
