@@ -143,6 +143,14 @@ namespace Hardware.LcdCharacterDisplay
             SetBias(Globals.LCDBiasPC);
         }
 
+        public override void Suspend()
+        {
+            DisplayUpdateThread?.Suspend();
+        }
+        public override void Resume()
+        {
+            DisplayUpdateThread?.Resume();
+        }
         private void CreateLCDBiasControlChannel()
         {
             try
@@ -282,7 +290,6 @@ namespace Hardware.LcdCharacterDisplay
                 DisplayUpdateThread.Start();
             }
         }
-
         public void Send(byte value, bool mode, bool backlight)
         {
             _rsPort.Write(mode ? PinHi : PinLo);

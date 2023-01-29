@@ -799,12 +799,13 @@ namespace AnodeMeter
             }
         }
 
-        public void QuickNap(int seconds)
+        public int QuickNap(int seconds)
         {
-            _sys.Hibernate(seconds);
+            return _sys.Hibernate(seconds);
         }
-        public void DoHibernate(int ShutDownAfterMinutes = 59)
+        public int DoHibernate(int ShutDownAfterMinutes = 59)
         {
+            int res = 0;
             // Time to Sleep
             _lcd.ShowTimedMessage("In Stand-By", 2);
             Thread.Sleep(500);
@@ -814,7 +815,9 @@ namespace AnodeMeter
 
             ESP8266WiFi.PowerOff(true);
 
-            _sys.Hibernate();
+            _lcd.Suspend();
+            res = _sys.Hibernate();
+            _lcd.Resume();
 
             // TODO DAV - Remove this when GHI fixes SDK4.3
             _lcd.FixIO();
@@ -825,7 +828,8 @@ namespace AnodeMeter
             long secs = (DateTime.Now - SleepStart).Ticks / TimeSpan.TicksPerSecond;
             Globals.RefTimer += (int)secs; // Adjust RefTimer but not RunTimer
 
-            dtIgnoreButtonsUntil = DateTime.Now + new TimeSpan(TimeSpan.TicksPerSecond * 2);
+            //dtIgnoreButtonsUntil = DateTime.Now + new TimeSpan(TimeSpan.TicksPerSecond * 2);
+            dtIgnoreButtonsUntil = DateTime.Now.AddSeconds(2);
             RegisterActivity();
             _lcd.SetBacklight(Globals.BackLightLevel);
             _lcd.ReInit();
@@ -833,6 +837,7 @@ namespace AnodeMeter
             // If we have been hibernating for >x (default  59) minutes (selectable later?) then may as well power off
             if ((ShutDownAfterMinutes > 0) &&  (secs > (60 * ShutDownAfterMinutes)) && (_bsp != null))
                 _bsp.PowerOff("Power Off", 15);
+            return res;
         }
         private void HousekeepingWhileConnected()
         {
@@ -1837,26 +1842,32 @@ namespace AnodeMeter
 
             string topLineofDisplay = "#" + _sys.GetMeterNumber.ToString();
             topLineofDisplay += " ";
-            string AnodeMeterVersion = "V" + ver.Major.ToString() + "." + ver.Minor.ToString();
+            string AnodeMeterVersion = "Vn" + ver.Major.ToString() + "." + ver.Minor.ToString() + "." + ver.Revision.ToString();
             topLineofDisplay += AnodeMeterVersion;
-            topLineofDisplay += " " + _bc.BatteryVoltage.ToString("F1") + "v";
+            //topLineofDisplay += " " + _bc.BatteryVoltage.ToString("F1") + "v";
+            string bottomLineofDisplay;
 
-            string Year = _dtShiftOfLoadedSchedules.Year.ToString();
-            string Month = _dtShiftOfLoadedSchedules.Month.ToString();
-            string Day = _dtShiftOfLoadedSchedules.Day.ToString();
-            string shift = _dtShiftOfLoadedSchedules.Hour.ToString();
-            if (Month.Length == 1)
-                Month = "0" + Month;
-            if (Day.Length == 1)
-                Day = "0" + Day;
+            if (_dtShiftOfLoadedSchedules > DateTime.MaxValue)
+            {
+                string Year = _dtShiftOfLoadedSchedules.Year.ToString();
+                string Month = _dtShiftOfLoadedSchedules.Month.ToString();
+                string Day = _dtShiftOfLoadedSchedules.Day.ToString();
+                string shift = _dtShiftOfLoadedSchedules.Hour.ToString();
+                if (Month.Length == 1)
+                    Month = "0" + Month;
+                if (Day.Length == 1)
+                    Day = "0" + Day;
 
-            if (shift == "7")
-                shift = "DS";
+                if (shift == "7")
+                    shift = "DS";
+                else
+                    shift = "NS";
+
+                //string bottomLineofDisplay = shift + Day + "/" + Month; 
+                 bottomLineofDisplay = Day + "/" + Month + "/" + Year + " - " + shift;
+            }
             else
-                shift = "NS";
-
-            //string bottomLineofDisplay = shift + Day + "/" + Month; 
-            string bottomLineofDisplay = Day + "/" + Month + "/" + Year + " - " + shift;
+                 bottomLineofDisplay = "No Schedules";
 
             //bottomLineofDisplay += " ";
             //bottomLineofDisplay += DateTime.Now.ToString("HH:mm");
@@ -2020,6 +2031,8 @@ namespace AnodeMeter
                         {
                             Name = RecordParts[0];
                             Time = RecordParts[1].Trim().Left(16);
+                            if (Name.Left(2).ToUpper() == Folders.OldRootFsPath)
+                                Name = Name.Right(Name.Length - 2);
                         }
                     }
                 }

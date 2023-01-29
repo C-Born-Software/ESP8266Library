@@ -14,7 +14,6 @@ using GHIElectronics.TinyCLR.Native;
 using GHIElectronics.TinyCLR.Devices.Storage;
 using GHIElectronics.TinyCLR.IO;
 using GHIElectronics.TinyCLR.Update;
-using GHIElectronics.TinyCLR.Native;
 using AnodeMeter.Common;
 using AnodeMeter;
 using PervasiveDigital.Net;
@@ -662,8 +661,10 @@ namespace AnodeMeter.Hardware
                                     {
                                         PrintScreen("Sleeping...","");
                                         Thread.Sleep(1000);
-                                        ConfigureSystem.Meter?.DoHibernate();
-                                        PrintScreen("Awake!", "");
+                                        int res = ConfigureSystem.Meter != null ? ConfigureSystem.Meter.DoHibernate() : 0;
+                                        //int res = ConfigureSystem.Meter != null ? ConfigureSystem.Meter.QuickNap(20): 0;
+                                        //ConfigureSystem.Meter?.QuickNap(20);
+                                        PrintScreen("Woken by:", res == 0 ? "Timer" : "Button");
                                         Thread.Sleep(1000);
                                         break;
                                     }
@@ -1072,7 +1073,7 @@ namespace AnodeMeter.Hardware
 
                     // For TinyCLR // TODO DAV Pass constructor with C-Born ID next...
                     //ms.Enable();
-                    ConfigureSystem.Meter?.QuickNap(1);
+                    int res = ConfigureSystem.Meter != null ? ConfigureSystem.Meter.QuickNap(1) : 0;
                     StartMs();
                 }
                 catch (Exception ex)

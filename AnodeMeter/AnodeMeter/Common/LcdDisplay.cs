@@ -55,7 +55,14 @@ namespace AnodeMeter.Common
         }
         public virtual void ReInit() {; }
 
-
+        public virtual void Suspend()
+        {
+            //Suspend();
+        }
+        public virtual void Resume()
+        {
+            //Resume();
+        }
         public LcdDisplay(int Rows, int Columns, int Row1Start, int Row2Start)
         {
             Configure(Rows, Columns, Row1Start, Row2Start);

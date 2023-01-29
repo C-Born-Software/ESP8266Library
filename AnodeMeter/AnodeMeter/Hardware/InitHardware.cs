@@ -137,7 +137,7 @@ namespace AnodeMeter.Hardware
                 }
             }
         }
-        public override void Hibernate(int seconds = 60 * 60)
+        public override int Hibernate(int seconds = 60 * 60)
         {
             // Hibernate, wake up on button push, or RTC alarm
             //Power.Hibernate(Power.WakeUpInterrupt.InterruptInputs); 
@@ -151,9 +151,25 @@ namespace AnodeMeter.Hardware
             ///PowerState.WakeupEvents |= (HardwareEvent.OEMReserved1 | HardwareEvent.OEMReserved2);
             ///PowerState.Sleep(SleepLevel.DeepSleep, HardwareEvent.OEMReserved1 | HardwareEvent.OEMReserved2);
             var rtc = RtcController.GetDefault();
-            Power.Sleep(rtc.Now.AddSeconds(seconds));
-            Debug.WriteLine("Slept for " + (rtc.Now - DateTime.Now).TotalSeconds + " Seconds");
-            SystemTime.SetTime(rtc.Now);
+            var StartTime = DateTime.Now;
+            Globals.ButtonPressed = false;
+            const int MaxSleep =  4 * 60;
+            while(seconds > 0) 
+            {
+                // Wake up every 4 minutes to get around bug in GHI firmware
+                int SecondsToSleep = (seconds > MaxSleep) ? MaxSleep : seconds;
+                Debug.WriteLine("Sleeping for: " + SecondsToSleep + "s of " + seconds);
+                DateTime dt = rtc.Now;
+                Debug.WriteLine("Sleep from " + dt + " (" + DateTime.Now + ")  to " + rtc.Now.AddSeconds(SecondsToSleep));
+                Power.Sleep(rtc.Now.AddSeconds(SecondsToSleep));
+                SystemTime.SetTime(rtc.Now);
+                if (Globals.ButtonPressed) break;
+                seconds -= SecondsToSleep;
+                Debug.WriteLine("Sleep to go: " + seconds);
+            }
+            Debug.WriteLine("Slept for " + (rtc.Now - StartTime).TotalSeconds + " Seconds");
+
+            return seconds; // Zero if timed out, else buttonpush (and equals seconds before scheduled timeout)
         }
     }
 }

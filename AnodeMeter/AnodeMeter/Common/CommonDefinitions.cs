@@ -74,6 +74,8 @@ namespace AnodeMeter
         public enum PowerStates : byte { Normal = 0, BatteryTest, LowPower, VeryLowPower, Critical }; // For use in testing battery, or power-save when battery low
         public static PowerStates PowerState = PowerStates.Normal;
 
+        public static bool ButtonPressed = false;   // Used to help find reason we came out of Sleep/Hibernate
+
         public static float BattVoltLow = 3.7f; // Low battery
         public static float BattVoltVeryLow = 3.6f; // Very Low battery
         public static float BattVoltCritical = 3.5f; // Critically Low battery - immediate power off
@@ -138,6 +140,7 @@ namespace AnodeMeter
     public static class Folders
     {
         public const string RootFsPath = ""; // Was "SD" on EMX and G120 (NetMF);
+        public const string OldRootFsPath = "SD";
 
         public const string ConfigPath = RootFsPath + "\\Config";
         public const string SchedPath = RootFsPath + "\\Schedules";

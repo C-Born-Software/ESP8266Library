@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 //using Microsoft.SPOT;
 //using Microsoft.SPOT.Hardware;
 using System.Threading;
@@ -68,7 +69,7 @@ namespace AnodeMeter.Hardware
         //void ButtonPort_OnInterrupt(uint data1, uint data2, DateTime time)
         void ButtonPort_OnInterrupt(GpioPin sender, GpioPinValueChangedEventArgs e)
         {
-
+            Globals.ButtonPressed = true;
         }
         private void InputPortSamplerWorker()
         {
