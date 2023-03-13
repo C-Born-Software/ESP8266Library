@@ -534,7 +534,11 @@ namespace AnodeMeter
             try
             {
                 if (s.IsNumbersOnly())
-                    b = Convert.ToByte(s);
+                {
+                    int i = Convert.ToUInt16(s);
+                    if (i < 256)
+                        b = (byte) i;
+                }
             }
             catch (Exception ex)
             {
@@ -634,6 +638,12 @@ namespace AnodeMeter
                                 break;
                             case "wifidisable":
                                 if (HasP1) Globals.WifiDisable = (p1b != 0);
+                                break;
+                            case "wifidebug":
+                                if (HasP1) Globals.WifiDebug = (p1b != 0);
+                                break;
+                            case "wifiverbose":
+                                if (HasP1) Globals.WifiVerbose = (p1b != 0);
                                 break;
                             case "wifimodes":
                                 Globals.WifiModes = p1b;
@@ -1109,7 +1119,7 @@ namespace AnodeMeter
                     _bc = new PhysicalBatteryCharge();
                     Profile.DebugTime("Setup bc "); //TODO DAV DEBUG
                     //              ((HardwareAI)_ai).BatteryVoltageHandler += new HardwareAI.BattVoltageConsumer(((PhysicalBatteryCharge)_bc).OnBattVoltageReceived);
-                    _bsp = new BoardSetup(_lcd, _amb, _led, _bc, _ds, _gw_usb, _gw_wifi /*ActiveGW()*/);
+                    _bsp = new BoardSetup(_lcd, _amb, _led, _bc, _ds, _gw_usb, _gw_wifi, this);
                     Profile.DebugTime("Setup bsp"); //TODO DAV DEBUG
                     break;
             }
@@ -1139,11 +1149,13 @@ namespace AnodeMeter
 
             if (_ds != null)
             {
+                FStream fs = null;
                 try
                 {
+                    
                     _tm.RegisterDataStore(_ds);
 
-                    if (_plant.Init(_ds.OpenConfiguration()))
+                    if (_plant.Init(fs = (FStream) _ds.OpenConfiguration()))
                     {
                         _tm.Init();
                         Globals.CfgState = Globals.ConfigState.ConfigOK;
@@ -1152,6 +1164,7 @@ namespace AnodeMeter
                     else
                         Globals.CfgState = Globals.ConfigState.NotConfigured;
 
+                    //if(fs != null) { fs.Close(); fs.Dispose(); fs = null; }
                     SelectPot.SetPotInfoProvider(_plant.GetPotNameCharRange);
                     SelectPot.SetPotNameCheck(_plant.IsValidPotName);
                     SelectPot.UsePot(_plant.GetDefaultPot());
@@ -1159,6 +1172,9 @@ namespace AnodeMeter
                 }
                 catch
                 {
+                    //if (fs != null) { fs.Close(); fs.Dispose(); fs = null; }
+                } finally {
+                    if (fs != null) { fs.Close(); fs.Dispose(); fs = null; }
                 }
             }
             if (Globals.CfgState != Globals.ConfigState.ConfigOK)
@@ -1176,12 +1192,12 @@ namespace AnodeMeter
                 "Serial: " + Globals.Serial);
 
             MeterNumber = _sys.GetMeterNumber;
-            _gw_usb.Init();
-            _gw_wifi.Init();
+
+
+
+
             _amb.MeterButtonChanged += new AnodeMeterButtons.EventHandler(amb_MeterButtonChanged);
             _ai.RawDataHandler += new AnalogInput.EventHandler(OnRawAiDataReceived);
-            _gw_usb.ConnectionStateHandler += new BinaryTransport.ConnectionStateChanged(OnCommsStateChanged);
-            _gw_wifi.ConnectionStateHandler += new BinaryTransport.ConnectionStateChanged(OnWifiStateChanged);
             _sp.MeteringReadingHandler += new SignalProcessor.MeteringReadError(OnMeasureStateChange);
             _sp.VoltDropHandler += new SignalProcessor.VoltDropRead(OnNewMeasurement);
 
@@ -1191,10 +1207,35 @@ namespace AnodeMeter
             _lcd.ClearDisplay();
             _lcd.MoveIntoDisplay("       ", new LcdDisplay.CursorPosition(0, 0));
 
+            // Boot to MassStorage mode? (There may well be better locations for this!)
+            if (_bsp != null)
+                if (_bsp.BootToMassStorage() )   // Check flag in battery-backed memory
+                {
+                    //_bsp.DiskDriveMode(true);
+                    _bsp.EnterSetupMode(BoardSetup.MenuTypes.Mode, BoardSetup.MenuItems.modeDiskDrive, 0);
+                }
+                else
+                    TransportInit();    // Initialize USB and WiFi transports
+
+
+
             if (!_tm.IsSystemTimeOK())
             {
                 if (_bsp != null)
                     _bsp.EnterSetupMode(BoardSetup.MenuTypes.Settings, BoardSetup.MenuItems.setClock, 3);
+            }
+        }
+
+        bool bTransportInitDone = false;       // So we can hold off init for boot into MassStorage mode
+        public void TransportInit()
+        {
+            if (!bTransportInitDone)
+            {
+                _gw_usb.Init();
+                _gw_wifi.Init();
+                _gw_usb.ConnectionStateHandler += new BinaryTransport.ConnectionStateChanged(OnCommsStateChanged);
+                _gw_wifi.ConnectionStateHandler += new BinaryTransport.ConnectionStateChanged(OnWifiStateChanged);
+                bTransportInitDone = true;
             }
         }
 

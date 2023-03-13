@@ -320,6 +320,9 @@ namespace AnodeMeter.Common
             catch (Exception ex)
             {
                 Debug.WriteLine("Error in \"DataStore::WriteFile\" while attempting to " + (append ? "append to " : "create ") + "file \"" + fName + "\". Reason: " + ex.Message);
+                // if fname == FileDefs.SystemConfigFile, then rethrow the exception
+                if (fName == FileDefs.SystemConfigFile)
+                    throw ex;
             }
             if (fs != null)
                 fs.Close();
@@ -596,11 +599,8 @@ namespace AnodeMeter.Common
 
             try
             {
-                Debug.WriteLine("GetSHA1Hash with " + dataToHash.Length);
                 var sha1 = SHA1.Create();
-                Debug.WriteLine("GetSHA1Hash point 2");
                 hashSHA = sha1.ComputeHash(dataToHash);
-                Debug.WriteLine("GetSHA1Hash point 3 with " + hashSHA.Length);
                 //                CryptokiDigest di = new CryptokiDigest("", new Mechanism(MechanismType.SHA_1), 160);
                 //              hashSHA = di.Digest(dataToHash, 0, dataToHash.Length);
             }

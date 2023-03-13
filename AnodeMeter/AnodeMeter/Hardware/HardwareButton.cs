@@ -32,12 +32,23 @@ namespace AnodeMeter.Hardware
         private GpioPin ButtonPort;
 
         //TODO DAV Refactor button handling. Perhaps only one thread for all?
+
+        public bool ClickedSince(ref ushort ClickCount)
+        {
+            if (ClickCount != this.ClickCount)
+            {
+                ClickCount = (ushort)this.ClickCount;
+                return true;
+            }
+            return false;
+        }
         public bool state;
         public bool bootstate;
         public bool held;
         public bool click;
         public char code;
         byte time;
+        private ushort ClickCount = 0;
         //----
 
         //public HardwareButton(Cpu.Pin port, Port.ResistorMode resistor)
@@ -74,36 +85,14 @@ namespace AnodeMeter.Hardware
         private void InputPortSamplerWorker()
         {
             bool onboot = true; //DAV
+            bool laststate = false;
 
             while (true)
             {
-                bool State = (ButtonPort.Read() == GpioPinValue.High);
+                bool State = (ButtonPort.Read() == GpioPinValue.High); // false when pressed
                 //Debug.Print(State.ToString());
 
-                // DAV -----
-                bool nstate = !State;
-                click = false;
-                held = false;
-                if (state)
-                {
-                    if (nstate != state)
-                        click = true;
-                    if (time >= 4)
-                        held = true;
-                    else
-                        ++time;
-                }
-                else
-                    time = 0;
-
-                state = nstate;
-                if (onboot)
-                {
-                    bootstate = state;
-                    onboot = false;
-                }
-
-                //-----
+ 
 
                 if (State != ActiveLevel)
                 {
@@ -131,6 +120,33 @@ namespace AnodeMeter.Hardware
                     counter = 0;
                     previouslyPressed = false;
                 }
+
+                // DAV -----
+                state = !State;
+                click = false;
+                held = false;
+                if (state)
+                {
+                    if (laststate != state) {
+                        click = true;
+                        ++ClickCount;
+                    }
+                    if (time >= 4)
+                        held = true;
+                    else
+                        ++time;
+                }
+                else
+                    time = 0;
+
+                //state = nstate;
+                if (onboot)
+                {
+                    bootstate = state;
+                    onboot = false;
+                }
+                laststate = state;
+                //-----
                 Thread.Sleep(SamplingInterval);
             }
         }

@@ -44,6 +44,8 @@ namespace AnodeMeter
         public static string[] Gateways;
         public static bool USBDisable = false;
         public static bool WifiDisable = false;
+        public static bool WifiDebug = false;
+        public static bool WifiVerbose = false;
         public static byte WifiModes = 3;       // Flags, b0 = timed, b1 = end of pot, b2 = on charge
         public static int WifiSyncTime = 5 * 60;  // Intervals between wiFi sync attempts in timed mode (seconds)
         public static Hashtable WifiInfo = new Hashtable(); // Cache info about wifi
@@ -139,7 +141,7 @@ namespace AnodeMeter
 
     public static class Folders
     {
-        public const string RootFsPath = ""; // Was "SD" on EMX and G120 (NetMF);
+        public const string RootFsPath = "A:"; // Was "SD" on EMX and G120 (NetMF);
         public const string OldRootFsPath = "SD";
 
         public const string ConfigPath = RootFsPath + "\\Config";

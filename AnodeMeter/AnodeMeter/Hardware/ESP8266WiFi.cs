@@ -75,6 +75,9 @@ namespace AnodeMeter.Hardware
             _wifi = new Esp8266WifiDevice(port, _rfPower, _rfReset);
             if(_wifi != null)
             {
+                _wifi.EnableDebugOutput = Globals.WifiDebug;
+                _wifi.EnableVerboseOutput = Globals.WifiVerbose;
+
                 _wifi.Booted += (sender, cause) =>
                 {
                     Debug.WriteLine("ESP8266 Device Booted");

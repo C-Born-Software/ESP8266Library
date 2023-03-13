@@ -122,7 +122,7 @@ namespace AnodeMeter
         public virtual bool Init()
         {
             _cs = ConnectionState.Detached;
-            _tmrManageConnection = new Timer(QueueConnectionStatusChange, null, 0, 500); ;
+            _tmrManageConnection = new Timer(QueueConnectionStatusChange, null, 0, 500);
             return _tmrManageConnection != null;
 
         }
