@@ -55,6 +55,9 @@ namespace AnodeMeter.Hardware
             var adc3 = AdcController.FromName(SC20260.Adc.Controller3.Id);
             AdcChannel VRef2p5 = adc3.OpenChannel(IOMap.VRef2p5);
 
+            // ADC is very noisy on the SC20260 - don't know if this does anything to help though...
+            VRef2p5.SamplingTime =  VBatt.SamplingTime = TimeSpan.FromTicks(126); // 126 ticks = 12664nS according to GI specs
+
             // On EMX default precision was 10 bits (1024)
             // On G120 it is 12 bits (4096)
             const double VBatt_Scale = 2 * 3.3;
@@ -93,7 +96,8 @@ namespace AnodeMeter.Hardware
                     }
                 }
 
-                AvBattVolts += ((BattVolts - AvBattVolts) / 8);
+                //AvBattVolts += ((BattVolts - AvBattVolts) / 8);
+                AvBattVolts += ((BattVolts - AvBattVolts) / 32); // Increased filtering to reduce noise
 
                 Globals.gBattVolts = BattVolts;
                 Globals.gAvBattVolts = AvBattVolts;

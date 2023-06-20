@@ -188,12 +188,14 @@ namespace AnodeMeter.Common
         private static TimeSpan _tsShiftLen;
         private static TimeSpan _tsFirstShiftOffset;
         private string _defaultLine;
+
+#if false   // Appears this was never used. If it was ever set it would force a reload of the config file, and a reboot!
         public string DefaultLine
         {
             get { return _defaultLine; }
             set { if (value != _defaultLine) { _defaultLine = value; DataStore.UpdateXmlValue("DefaultLineName", _defaultLine); } }
         }
-
+#endif
         // Provide a container for reverse lookup of Pot details
         public class PotDetails
         {

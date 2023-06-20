@@ -1021,23 +1021,30 @@ namespace AnodeMeter
                             Logging.IssueEvent(Logging.ErrSeverity.Warning, "AnodeMeter::HousekeepingWhileConnected", "Server side error fetching the Site-Configuration-File", "Server Cfg Err");
                             configFileServerVersion = null;
                         }
-                        else if (configFileServerVersion.Left(5).ToLower() == "<?xml")
+                        //else if (configFileServerVersion.Left(5).ToLower() == "<?xml")
+                        else if (configFileServerVersion.Length >= 40) // 40 characters to cover minimum xml declaration length
                         {
-                            // Check that the new config string is correct (no Transmission errors...)
-                            string hashedProposedConfig = _ds.GetSHA1Hash(configFileServerVersion);
-                            string serverConfigCheck = ActiveGW().IssueRequest("GetConfigFromServerIfDirty", "ClientConfig", "SHA1Hash", hashedProposedConfig, 6000);
+                            string xmlHeader = configFileServerVersion.Substring(0, 40).ToLower(); // get the first 40 characters and convert to lower case
 
-                            if (serverConfigCheck != null && serverConfigCheck.ToUpper().IndexOf("CURRENT") != -1)
+                            // Check the header starts with "<?xml" and contains "utf-8"
+                            if (xmlHeader.StartsWith("<?xml") && xmlHeader.Contains("utf-8"))
                             {
-                                Logging.IssueEvent(Logging.ErrSeverity.Informational, "AnodeMeter::HousekeepingWhileConnected", "Site-Configuration-File updated from Server", "Cfg Updt:Rebootg");
+                                // Check that the new config string is correct (no Transmission errors...)
+                                string hashedProposedConfig = _ds.GetSHA1Hash(configFileServerVersion);
+                                string serverConfigCheck = ActiveGW().IssueRequest("GetConfigFromServerIfDirty", "ClientConfig", "SHA1Hash", hashedProposedConfig, 6000);
 
-                                if (_ds.WriteConfigFile(configFileServerVersion))
+                                if (serverConfigCheck != null && serverConfigCheck.ToUpper().IndexOf("CURRENT") != -1)
                                 {
-                                    //_sys.InitOnStart();  // reload configuration with new device id
-                                    _lcd.CancelTimedMessages();
-                                    _lcd.ShowTimedMessage("Config Update", "Rebooting...");
+                                    Logging.IssueEvent(Logging.ErrSeverity.Informational, "AnodeMeter::HousekeepingWhileConnected", "Site-Configuration-File updated from Server", "Cfg Updt:Rebootg");
 
-                                    _bRebootNextPass = true;
+                                    if (_ds.WriteConfigFile(configFileServerVersion))
+                                    {
+                                        //_sys.InitOnStart();  // reload configuration with new device id
+                                        _lcd.CancelTimedMessages();
+                                        _lcd.ShowTimedMessage("Config Update", "Rebooting...");
+
+                                        _bRebootNextPass = true;
+                                    }
                                 }
                             }
                         }
