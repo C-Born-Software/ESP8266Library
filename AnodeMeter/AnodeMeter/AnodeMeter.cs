@@ -1198,9 +1198,8 @@ namespace AnodeMeter
                 DeviceInformation.Version.ToVersionString() + " Board: SC20260",
                 "Serial: " + Globals.Serial);
 
+
             MeterNumber = _sys.GetMeterNumber;
-
-
 
 
             _amb.MeterButtonChanged += new AnodeMeterButtons.EventHandler(amb_MeterButtonChanged);

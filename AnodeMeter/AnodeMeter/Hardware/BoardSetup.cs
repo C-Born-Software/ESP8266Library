@@ -17,7 +17,7 @@ using GHIElectronics.TinyCLR.Update;
 using AnodeMeter.Common;
 using AnodeMeter;
 using PervasiveDigital.Net;
-using PervasiveDigital.Utilities;
+//using PervasiveDigital.Utilities;
 using PervasiveDigital.Hardware.ESP8266;
 using GHIElectronics.TinyCLR.Cryptography;
 
@@ -103,7 +103,7 @@ namespace AnodeMeter.Hardware
         public enum MenuItems
         {
             setTopLevel = 0, setBackLight, setGreenLED, setRedLED, setLCDBias, setClock, setMeasMode, setLogRawData, setWiFi, setWifiDebug, setWifiVerbose, setSave, setLoad, setAutoScan = 100,
-            infoTopLevel = 0, infoBatt, infoInput, infoFirmware, infoBuiltOn, infoSDCard, infoSerial,
+            infoTopLevel = 0, infoBatt, infoInput, infoFirmware, infoBuiltOn, infoSDCard, infoSerial, infoUID,
             modeTopLevel = 0, modeDiskDrive = 2,
             supportTopLevel = 0, supportPowerOff,supportHibernate, supportBattTest, supportIFU, supportEraseID, supporSetSerial = 100,
             wifiTopLevel = 0, wifiStatus, wifiInfo, wifiScan, wifiTop,
@@ -562,6 +562,14 @@ namespace AnodeMeter.Hardware
                                         break;
                                     case MenuItems.infoSerial: // Display Meter Serial Number. Should be same as on sticker inside box
                                         PrintScreen("Serial: " + Globals.Serial, "");
+                                        break;
+                                    case MenuItems.infoUID: // Display device Unique ID
+                                        {
+                                            string uidString = ((string)BitConverter.ToString(DeviceInformation.GetUniqueId())).Replace("-", "");
+                                            string SHi = uidString.Substring(0, 12);
+                                            string SLo = uidString.Substring(12, 12);
+                                            PrintScreen("ID: " + SHi, "    " + SLo);
+                                        }
                                         break;
 #if false
                             case MenuItems.infoMacAdd: // MAC Address
@@ -1073,7 +1081,7 @@ namespace AnodeMeter.Hardware
                 Debug.WriteLine("Data Received : " + args.Data.Length);
                 if (args.Data.Length > 0)
                 {
-                    var body = StringUtilities.ConvertToString(args.Data);
+                    var body = PervasiveDigital.Utilities.StringUtilities.ConvertToString(args.Data);
                     Debug.WriteLine("Received: " + body);
                     //TODO: Parse the request - here we're just going to reply with a 404
                     // socket.Send("HTTP/1.1 404 NOT FOUND\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
