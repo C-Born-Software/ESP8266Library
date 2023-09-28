@@ -1,7 +1,6 @@
 //using Microsoft.SPOT;
 using IPAddress = System.Net.IPAddress;
 
-
 namespace PervasiveDigital.Hardware.ESP8266
 {
     public class AccessPointClient
