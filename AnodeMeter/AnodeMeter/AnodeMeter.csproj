@@ -120,6 +120,9 @@
     <Reference Include="GHIElectronics.TinyCLR.Devices.UsbClient, Version=2.2.0.5000, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\GHIElectronics.TinyCLR.Devices.UsbClient.2.2.0.5000\lib\net452\GHIElectronics.TinyCLR.Devices.UsbClient.dll</HintPath>
     </Reference>
+    <Reference Include="GHIElectronics.TinyCLR.IO, Version=2.2.0.5000, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\GHIElectronics.TinyCLR.IO.2.2.0.5000\lib\net452\GHIElectronics.TinyCLR.IO.dll</HintPath>
+    </Reference>
     <Reference Include="GHIElectronics.TinyCLR.IO.TinyFileSystem, Version=2.2.0.5000, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\GHIElectronics.TinyCLR.IO.TinyFileSystem.2.2.0.5000\lib\net452\GHIElectronics.TinyCLR.IO.TinyFileSystem.dll</HintPath>
     </Reference>
@@ -140,10 +143,6 @@
     <ProjectReference Include="..\ESP8266Library\ESP8266Library.csproj">
       <Project>{BE29B5BF-549D-4759-8063-1215C04D358F}</Project>
       <Name>ESP8266Library</Name>
-    </ProjectReference>
-    <ProjectReference Include="G:\Data\BigSandbox\TinyCLR-Libraries\GHIElectronics.TinyCLR.IO\GHIElectronics.TinyCLR.IO.csproj">
-      <Project>{313AEC8E-2B47-4A1A-ACE2-A766D076B2AE}</Project>
-      <Name>GHIElectronics.TinyCLR.IO</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -355,12 +355,16 @@ namespace AnodeMeter.Common
         // Note that this is our own local variant based on a ulong, not the InField version based on a uint
         public static string ToVersionString(this ulong vn, bool bLong = false)
         {
-            /*var v1 = vn >> 48;
+            var v1 = vn >> 48;
               var v2 = (vn >> 32) & 0x0ffff;
               var v3 = (vn >> 16) & 0x0ffff;
               var v4 = vn & 0x0ffff;
-              return v1 + "." + v2 + "." + v3 + "." + v4; */
-            return ((vn >> 48) + "." + ((vn >> 32) & 0x0ffff) + "." + ((vn >> 16) & 0x0ffff) + (bLong ? "." + (vn & 0x0ffff) : ""));
+            string s4 = v4.ToString();
+            if (bLong == false)
+                s4 = s4.Left(1);
+
+              return v1 + "." + v2 + "." + v3 + "." + s4;
+            //return ((vn >> 48) + "." + ((vn >> 32) & 0x0ffff) + "." + ((vn >> 16) & 0x0ffff) + (bLong ? "." + (vn & 0x0ffff) : ""));
         }
     }
 }
