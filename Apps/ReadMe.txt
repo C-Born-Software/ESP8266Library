@@ -36,5 +36,11 @@ Another cleans up version info given on long-press of the Select button
 
 DAV 29 Jan 2023
 
+App_2.2.0_20230928-1.tca
+========================
+This is a transition version which needs to be installed before upgrading to the 2.2.0.6xxx firmware.
+It is the same as the previous version, except that it matches based on the relevant version codes, so 2.2.0.5xxx, with next version being upgrade to 2.2.0.6xxx
+
+DAV 28 Sep 2023  
 
 00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
