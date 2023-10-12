@@ -603,9 +603,10 @@ namespace AnodeMeter.Hardware
                                             PrintScreen("DiskDrive Mode", "Connect ?  " + SpecialLCDCharacter.Tick);
                                             if (CentreButton.click)
                                             {
-                                                PrintScreen("Rebooting to", "DiskDrive Mode");
+                                                //PrintScreen("Rebooting to", "DiskDrive Mode");
+                                                PrintScreen("Switching to", "DiskDrive Mode");
                                                 Thread.Sleep(1000);
-                                                RebootToMs();   // TODO Fix  - Shouldn't get past here. But hopefully can remove this when GHI fixes firmware!
+                                                //RebootToMs();   // TODO Fix  - Shouldn't get past here. But hopefully can remove this when GHI fixes firmware!
 
                                                 DiskDriveMode(true);
                                                 MenuItem = MenuItems.modeDiskDrive;
@@ -635,12 +636,12 @@ namespace AnodeMeter.Hardware
                                             }
                                             Debug.WriteLine("Resuming because state = " + ms.DeviceState);
                                             //RebootToNormal();
-                                            //DiskDriveMode(false);
+                                            DiskDriveMode(false);
                                             _ds.FileSystemChanged();    // Files may have been changed so re-check
                                             PrintScreen("Device Mode", "Resuming...");
                                             Thread.Sleep(1000);
 
-                                            RebootToNormal(); // TODO Fix once GHI fixed firmware
+                                            //RebootToNormal(); // TODO Fix once GHI fixed firmware
                                             
                                             MenuItem = 0;
                                             MenuStep = 0;
@@ -757,8 +758,47 @@ namespace AnodeMeter.Hardware
                                                     ++MenuStep;
                                                 break;
                                             case 2:
-                                                FieldUpdate.CheckForUpdates();
-                                                ++MenuStep;
+                                                string[] flist = FieldUpdate.GetUpdateFileList();
+                                                if (flist.Length <= 0)
+                                                {
+                                                    MenuStep = 0;
+                                                    break;
+                                                }
+                                                if (flist.Length == 1) {
+                                                    FieldUpdate.CheckForUpdate(flist[0]);
+                                                    ++MenuStep;
+                                                }
+                                                else
+                                                {
+                                                    // If more than one file, allow user to select which one to update
+                                                    int ndx = 0;
+                                                    while (true)
+                                                    {
+                                                        PrintScreen("Select Version", ndx + 1 + ": " + FieldUpdate.UserPart(flist[ndx]));
+                                                        if (DownButton.click)
+                                                        {
+                                                            if (++ndx >= flist.Length)
+                                                                ndx = 0;
+                                                        }
+                                                        else if (UpButton.click)
+                                                        {
+                                                            if (--ndx < 0)
+                                                                ndx = flist.Length - 1;
+                                                        }
+                                                        else if (CentreButton.click)
+                                                        {
+                                                            FieldUpdate.CheckForUpdate(flist[ndx]);
+                                                            ++MenuStep;
+                                                            break;
+                                                        }
+                                                        else if (RightButton.click || LeftButton.click)
+                                                        {
+                                                            MenuStep = 0;
+                                                            break;
+                                                        }
+                                                        Thread.Sleep(100);
+                                                    }
+                                                }
                                                 break;
                                             case 3:
                                                 if (FieldUpdate.HaveUpdate)
@@ -1556,13 +1596,13 @@ namespace AnodeMeter.Hardware
             return buildDateTime;
         }
 #endif
-        /* ==================== Workarounds for MassStorage needing reset after WinUSB on some PCs =======================
-         * 
-         *  Hopefully will be fixed in future SDK releases!
-         *  
-         *  The Battery Backed memory stuff here could be useful anyway...
-         */
-
+/* ==================== Workarounds for MassStorage needing reset after WinUSB on some PCs =======================
+ * 
+ *  Hopefully will be fixed in future SDK releases!
+ *  
+ *  The Battery Backed memory stuff here could be useful anyway...
+ */
+#if false // Not needed now GHI has fixed firmware 
         // enum for startup flags. 0 = normal (USB), 1 = Mass Storage, 2 = WinUSB
         enum StartFlags : byte
         {
@@ -1644,7 +1684,8 @@ namespace AnodeMeter.Hardware
         static void RebootToMode(StartFlags mode)
         {
             SetBBStartFlags(mode);
-            SleepAndFixTime(1);
+            //SleepAndFixTime(1);
+            Thread.Sleep(1);                            // without this delay the BB flag doesn't work, assume it it written async on another thread
             GHIElectronics.TinyCLR.Native.Power.Reset();
         }
         static void RebootToMs()
@@ -1655,18 +1696,28 @@ namespace AnodeMeter.Hardware
         {
             RebootToMode(StartFlags.Normal);
         }
+#endif
+#if false
         private static void SleepAndFixTime(int seconds)
         {
             var rtc = RtcController.GetDefault();
+            if(!rtc.IsValid)
+            {
+                Debug.WriteLine("RTC Invalid");
+                return;
+            }
+            Debug.WriteLine("RTC: " + rtc.Now.ToString());
             var tStart = rtc.Now.Ticks;
-            GHIElectronics.TinyCLR.Native.Power.Sleep(rtc.Now.AddSeconds(seconds));
+            //GHIElectronics.TinyCLR.Native.Power.Sleep(rtc.Now.AddSeconds(seconds));   // This never wakes with the 99.x firmware
+            Thread.Sleep(seconds * 1000);                                               // but this works...
             var tEnd = rtc.Now.Ticks;
             Debug.WriteLine("Slept for " + (tEnd - tStart) / TimeSpan.TicksPerMillisecond + " mS");
             SystemTime.SetTime(rtc.Now);
         }
-
+#endif
         public bool BootToMassStorage()
         {
+#if false   // Unused for now...
             var ResetSource = GHIElectronics.TinyCLR.Native.Power.GetResetSource();
             if (ResetSource == ResetSource.SystemReset)
             {
@@ -1677,38 +1728,39 @@ namespace AnodeMeter.Hardware
 
                 return (sflags == StartFlags.MassStorage);
             }
+#endif
             return false;
         }
     }
 
-    /* =========== In Field Update Strategy =========
-     * 
-     * We have a top level directory "Update" (/SD/Update) with a subdirectory for each hardware type (Update\EMX and Update\G120)
-     * We require one file for a deployment only update (Same SDK release)
-     * We require an additional 3 files if we also need to update the firmware.
-     * We will use a naming convention for now. Later perhaps a descriptor file with file names and CRC/SHA checks etc will be a better approach
-     * 
-     * The Application file name is App_xxxx.hex, where xxxx contains a firmware revision number.
-     * For example, an Application built against SDK 4.2.10.1 should be called App_4.2.10.1_.hex,if we want to be able to load it without loading firmware
-     * It could also be App_4.2.10.1_1234.5678.hex, etc, the subsequent digits being used to identify the file, but not used by the software
-     * 
-     * If the App revision doesn't match the firmware revision in use, then firmware subdirectory and files must be present.
-     * 
-     * Firmware files should be placed in a subdirectory named for the firmware version, eg SDK_4.2.10.1
-     * (or the full path \SD\Update\EMX\SDK_4.2.10.1)
-     * The three firware files must be named Firmware.hex, Firmware2.hex and Config.hex, as per the GHI convention.
-     * These files will normally be copied from the GHI development directory,
-     * ie C:\Program Files (x86)\GHI Electronics\GHI Premium NETMF v4.2 SDK\EMX\Firmware
-     * 
-     * At this stage only one application is supported. At a later date we may allow multiple files and user selection
-     * 
-     * Old files can be moved to a /old subdirectory, new files put in a /new subdirectory, if desired
-     * 
-     * DAV  9AUG13
-     *      10AUG13 Updated to require subdirectory for firmware files)
-    */
- 
-    public class FieldUpdate
+        /* =========== In Field Update Strategy =========
+         * 
+         * We have a top level directory "Update" (/SD/Update) with a subdirectory for each hardware type (Update\EMX and Update\G120)
+         * We require one file for a deployment only update (Same SDK release)
+         * We require an additional 3 files if we also need to update the firmware.
+         * We will use a naming convention for now. Later perhaps a descriptor file with file names and CRC/SHA checks etc will be a better approach
+         * 
+         * The Application file name is App_xxxx.hex, where xxxx contains a firmware revision number.
+         * For example, an Application built against SDK 4.2.10.1 should be called App_4.2.10.1_.hex,if we want to be able to load it without loading firmware
+         * It could also be App_4.2.10.1_1234.5678.hex, etc, the subsequent digits being used to identify the file, but not used by the software
+         * 
+         * If the App revision doesn't match the firmware revision in use, then firmware subdirectory and files must be present.
+         * 
+         * Firmware files should be placed in a subdirectory named for the firmware version, eg SDK_4.2.10.1
+         * (or the full path \SD\Update\EMX\SDK_4.2.10.1)
+         * The three firware files must be named Firmware.hex, Firmware2.hex and Config.hex, as per the GHI convention.
+         * These files will normally be copied from the GHI development directory,
+         * ie C:\Program Files (x86)\GHI Electronics\GHI Premium NETMF v4.2 SDK\EMX\Firmware
+         * 
+         * At this stage only one application is supported. At a later date we may allow multiple files and user selection
+         * 
+         * Old files can be moved to a /old subdirectory, new files put in a /new subdirectory, if desired
+         * 
+         * DAV  9AUG13
+         *      10AUG13 Updated to require subdirectory for firmware files)
+        */
+
+        public class FieldUpdate
     {
         static string Path;
         static string AppBase;
@@ -1720,6 +1772,194 @@ namespace AnodeMeter.Hardware
         public static bool NeedFWUpdate = true;
         public static bool HaveFW = false;
 
+        // Return a list of possible update file names
+        public static string[] GetUpdateFileList()
+        {
+            Path = @"\Updates\" + "SC20" + @"\";
+            string Path1 = Path + "Apps" + @"\";
+
+            string[] Files;
+
+            ArrayList FileList = new ArrayList();
+
+            try {
+                if (Globals.SDCardPresent)
+                {
+                    if (ConfigureSystem._ps != null)
+                    {
+                        if (Directory.Exists(Path))
+                        {
+                            Files = Directory.GetFiles(Path);
+                            foreach (string file in Files) {
+                                string fn = file.ExtractFileNameFromFullPath();
+                                if (MatchFile(fn, "App_", ".tca"))
+                                {
+                                    FileList.Add(file);
+                                }
+                            }
+                        }
+                        if (Directory.Exists(Path1))
+                        {
+                            Files = Directory.GetFiles(Path1);
+                            foreach (string file in Files)
+                            {
+                                string fn = file.ExtractFileNameFromFullPath();
+                                if (MatchFile(fn, "App_", ".tca"))
+                                {
+                                    FileList.Add(file);
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.Write("Exception checking for Updates: " + e.Message);
+                HaveUpdate = false;
+            }
+            return (string[])FileList.ToArray(typeof(string));
+        }
+
+        public static void CheckForUpdate(string file)
+        {
+            Debug.WriteLine("Version: " + DeviceInformation.Version.ToVersionString());
+
+            //Path = @"SD\Updates\" + (Globals.G120 ? "G120" : "EMX") + @"\";
+            Path = @"\Updates\" + "SC20" + @"\";
+            //AppBase = "app_" + SystemInfo.Version.ToString();
+            //AppBase = "app_" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            AppBase = "app_" + DeviceInformation.Version.ToVersionString();
+            int AppBaseLen = AppBase.Length;
+
+            HaveFW = false;
+            fw = null;
+
+            string fn = file.ExtractFileNameFromFullPath();
+            if (MatchFile(fn, AppBase, ".tca"))
+            {
+                // Found a version matched application
+                AppName = file; // fn;
+                HaveUpdate = true;
+                NeedFWUpdate = false;
+                return;
+            }
+            // No Version-Matched App - try for any match, and confirm FW files exist
+            if (MatchFile(fn, "App_", ".tca"))
+            {
+                // Found a non version matched application
+                AppName = file; // fn;
+                HaveUpdate = true;
+                NeedFWUpdate = true;
+
+                string[] dirs = fn.Split('_');
+                if (dirs.Length > 1)
+                {
+                    string d = dirs[1];
+                    if (d.Right(4).ToLower() == ".tca")
+                        d = d.Left(d.Length - 4);
+                    string sdkpath = Path + "SDK_" + d + @"\";
+                    if (Directory.Exists(sdkpath))
+                    {
+                        string[] FWFiles = Directory.GetFiles(sdkpath);
+                        foreach (string f in FWFiles)
+                        {
+                            //fw = sdkpath + "Firmware.ghi";
+                            if (f.Right(4).ToLower() == ".ghi")
+                            //                                                if (MatchFile(f, "", "ghi"))
+                            {
+                                if (File.Exists(f))
+                                {
+                                    fw = f;
+                                    HaveFW = true;
+                                    return;
+                                }
+                                else
+                                    fw = null;
+                            }
+                        }
+                    }
+                }
+            }
+#if false
+            try
+            {
+                HaveUpdate = false;
+                if (Globals.SDCardPresent)
+                {
+                    if (ConfigureSystem._ps != null)
+                    {
+                        if (Directory.Exists(Path))
+                        {
+                            Files = Directory.GetFiles(Path);
+                            foreach (string file in Files)
+                            {
+                                string fn = file.ExtractFileNameFromFullPath();
+                                if (MatchFile(fn, AppBase, ".tca"))
+                                {
+                                    // Found a version matched application
+                                    AppName = fn;
+                                    HaveUpdate = true;
+                                    NeedFWUpdate = false;
+                                    return;
+                                }
+                            }
+                            // No Version Matched App - try for any match, and confirm FW files exist
+                            foreach (string file in Files)
+                            {
+                                string fn = file.ExtractFileNameFromFullPath();
+                                if (MatchFile(fn, "App_", ".tca"))
+                                {
+                                    // Found a non version matched application
+                                    AppName = fn;
+                                    HaveUpdate = true;
+                                    NeedFWUpdate = true;
+
+                                    string[] dirs = fn.Split('_');
+                                    if (dirs.Length > 1)
+                                    {
+                                        string d = dirs[1];
+                                        if (d.Right(4).ToLower() == ".tca")
+                                            d = d.Left(d.Length - 4);
+                                        string sdkpath = Path + "SDK_" + d + @"\";
+                                        if (Directory.Exists(sdkpath))
+                                        {
+                                            string[] FWFiles = Directory.GetFiles(sdkpath);
+                                            foreach (string f in FWFiles)
+                                            {
+                                                //fw = sdkpath + "Firmware.ghi";
+                                                if (f.Right(4).ToLower() == ".ghi")
+                                                //                                                if (MatchFile(f, "", "ghi"))
+                                                {
+                                                    if (File.Exists(f))
+                                                    {
+                                                        fw = f;
+                                                        HaveFW = true;
+                                                        return;
+                                                    }
+                                                    else
+                                                        fw = null;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                //throw new Exception("Fail when updating data " + e.ToString());
+                Debug.Write("Exception checking for Updates: " + e.Message);
+                HaveUpdate = false;
+            }
+#endif
+        }
+
+#if false
         public static void CheckForUpdates()
         {
             //string s = DeviceInformation.DeviceName + " Version: " + DeviceInformation.Version.ToString();
@@ -1812,7 +2052,22 @@ namespace AnodeMeter.Hardware
                 HaveUpdate = false;
             }
         }
+#endif
+        static public string UserPart(string fn)
+        {
+            try
+            {
+                string sa = fn.ExtractFileNameFromFullPath().Split('_')[2];
 
+                //string s = fn.ExtractFileNameFromFullPath();
+                //string[] sa = s.Split('_');
+                //string up = sa[2];
+                return sa.Left(sa.Length - 4);
+            } catch(Exception e)
+            {
+                return "";
+            }
+        }
         static bool MatchHexFile(string fn, string head)
         {
             return MatchFile(fn, head, ".hex");
@@ -1835,7 +2090,7 @@ namespace AnodeMeter.Hardware
                     // App matches current firmware. Just load new application
                     BoardSetup.PrintScreen("Loading App...", "");
                     Thread.Sleep(400);
-                    var filestreamApp = new FStream(Path + AppName, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    var filestreamApp = new FStream(AppName, FileMode.Open, FileAccess.Read, FileShare.Read);
                     var updater = new ApplicationUpdate(filestreamApp, appKey);
                     var applicationVersion = updater.Verify();
                     //updater.ActivityPin = indicatorPin; // optional
@@ -1855,7 +2110,7 @@ namespace AnodeMeter.Hardware
 
                     var dataChunk = new byte[1 * 1024]; // must be multiple of 1K
 
-                    var filestreamApp = new FStream(Path + AppName, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    var filestreamApp = new FStream(AppName, FileMode.Open, FileAccess.Read, FileShare.Read);
                     var filestreamFw = new FStream(fw, FileMode.Open, FileAccess.Read, FileShare.Read);
 
                     // Buffer application

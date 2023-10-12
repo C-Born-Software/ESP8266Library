@@ -1,6 +1,25 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.2.0.6_20231013-1.tca
+==========================
+Requires GHI fixed firmware 2.2.0.6100 and above (USB MassStorage switch fix, RTC wakeup fix)
+Adds selection of App from multiple versions in top level SC20 folder andSC20/Apps folder
+
+App_2.2.x_20231013-1X.tca
+=========================
+This is the same as the above version, but name changed so it will load from older versions running 2.2.0.5100 firmware
+To work this must be the ONLY .tca file in the top level SC20 folder, put the others in SC20/Apps
+
+DAV 13 October 2023
+
+App_2.2.0_20230928-1.tca (Don't use, use the one above instead!)
+========================
+This is a transition version which needs to be installed before upgrading to the 2.2.0.6xxx firmware.
+It is the same as the previous version, except that it matches based on the relevant version codes, so 2.2.0.5xxx, with next version being upgrade to 2.2.0.6xxx
+
+DAV 28 Sep 2023  
+
 App_2.2.0_20230621-1.tca
 ========================
 Peter's meter config program wrote UTF-16 headers on the SmelterConfiguration.xml, despite it only being 8-bit ASCII, which caused a problem, as the file was downloaded
@@ -36,11 +55,5 @@ Another cleans up version info given on long-press of the Select button
 
 DAV 29 Jan 2023
 
-App_2.2.0_20230928-1.tca
-========================
-This is a transition version which needs to be installed before upgrading to the 2.2.0.6xxx firmware.
-It is the same as the previous version, except that it matches based on the relevant version codes, so 2.2.0.5xxx, with next version being upgrade to 2.2.0.6xxx
-
-DAV 28 Sep 2023  
 
 00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
