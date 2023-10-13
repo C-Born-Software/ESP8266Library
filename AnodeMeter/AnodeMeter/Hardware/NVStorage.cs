@@ -108,11 +108,13 @@ namespace AnodeMeter.Hardware
             {
                 var tfs = GetTFS();
 
-                WifiHints wifiHints = (WifiHints)Reflection.Deserialize(tfs.ReadAllBytes(WifiFile), typeof(WifiHints));
+                if(tfs.Exists(WifiFile)) {
+                    WifiHints wifiHints = (WifiHints)Reflection.Deserialize(tfs.ReadAllBytes(WifiFile), typeof(WifiHints));
 
-                // found our hints
-                Globals.Wifi_AP_Index = wifiHints.AP_Index;
-                Globals.Wifi_Server_Index = wifiHints.Server_Index;
+                    // found our hints
+                    Globals.Wifi_AP_Index = wifiHints.AP_Index;
+                    Globals.Wifi_Server_Index = wifiHints.Server_Index;
+                }
             }
             catch (Exception ex)
             {
@@ -147,20 +149,25 @@ namespace AnodeMeter.Hardware
      }
 
     // A simple class to avoid repetition in trying to open/format our TFS - DAV
+
     public static class TinyFS {
         const int CLUSTER_SIZE = 256;
+        private static TinyFileSystem tfs = null;
         public static TinyFileSystem GetTFS()
         {
-            var tfs = new TinyFileSystem(new QspiMemory(4 * 1024 * 4), CLUSTER_SIZE);
-            if (!tfs.CheckIfFormatted())
+            if (tfs == null)
             {
-                //Do Format if necessary 
-                tfs.Format();
-            }
-            else
-            {
-                // Mount tiny file system
-                tfs.Mount();
+                tfs = new TinyFileSystem(new QspiMemory(4 * 1024 * 4), CLUSTER_SIZE);
+                if (!tfs.CheckIfFormatted())
+                {
+                    //Do Format if necessary 
+                    tfs.Format();
+                }
+                else
+                {
+                    // Mount tiny file system
+                    tfs.Mount();
+                }
             }
             return tfs;
         }

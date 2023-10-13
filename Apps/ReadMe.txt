@@ -1,12 +1,20 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
-App_2.2.0.6_20231013-1.tca
+Upgrading from firmware 2.2.0.5100 to 2.2.0.6100 (App_2.2.0 to App_2.2.0.6)
+===========================================================================
+1. Ensure recent version of App running (from Setup->Meter Readings, Board: SC20260 FW 2.2.0 (Only - Not 2.2.0.5100) Built: 2023-01-13 or newer
+2. Install subdirectories 2.2.x, 2.2.0.5 and 2.2.0.6 in Updates->SC20
+3. Install transition version App_2.2.x_20281013-2X.tca in Updates\SC20 folder.
+  (Note: no other .tca files can be in this folder. Create a subdirectory \Apps and put an others in there, or risk locking the board)
+4. Go to Meter Support->Upgrade Software
+
+App_2.2.0.6_20231013-2.tca
 ==========================
 Requires GHI fixed firmware 2.2.0.6100 and above (USB MassStorage switch fix, RTC wakeup fix)
 Adds selection of App from multiple versions in top level SC20 folder andSC20/Apps folder
 
-App_2.2.x_20231013-1X.tca
+App_2.2.x_20231013-2X.tca
 =========================
 This is the same as the above version, but name changed so it will load from older versions running 2.2.0.5100 firmware
 To work this must be the ONLY .tca file in the top level SC20 folder, put the others in SC20/Apps
