@@ -781,6 +781,14 @@ namespace PervasiveDigital.Hardware.ESP8266
                 _esp.SendAndExpect(Command(Commands.SetStationAddressCommand, persist) + '"' + value.ToString() + '"', OK);
             }
         }
+        public void SetStationIPAddress(string value, bool persist = false)
+        {
+            EnsureInitialized();
+            lock (_oplock)
+            {
+                _esp.SendAndExpect(Command(Commands.SetStationAddressCommand, persist) + value, OK);
+            }
+        }
 
         public IPAddress StationGateway
         {

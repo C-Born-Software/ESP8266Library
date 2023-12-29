@@ -97,7 +97,7 @@ namespace AnodeMeter.Hardware
         private static bool InShutDownMode = false;
         private static bool StillHeld = false;
 
-        private static UsbClientController UsbController;
+        //private static UsbClientController UsbController;
 
         public enum MenuTypes { Settings = 0, Info, Mode, Support, Wifi, Exit, Last = Exit, First = Settings };
         public enum MenuItems
@@ -627,8 +627,19 @@ namespace AnodeMeter.Hardware
                                             PrintScreen("DiskDrive Mode", "Disconnect?  " + SpecialLCDCharacter.Tick);
                                             ushort clicks=0;
                                             CentreButton.ClickedSince(ref clicks);
-                                            while (ms.DeviceState == DeviceState.Configured)
+                                            //while (ms.DeviceState == DeviceState.Configured)
+                                            DeviceState ds = ms.DeviceState;
+                                            while(true)
                                             {
+                                                if(ms.DeviceState != ds)
+                                                {
+                                                    Debug.WriteLine("DeviceState changed from " + ds + " to " + ms.DeviceState);
+                                                    ds = ms.DeviceState;
+                                                }
+                                                // With 64GB uSD state seems to switch between Default and Configured when in use, and goes to Suspended when ejected
+                                                if (ms.DeviceState != DeviceState.Configured && ms.DeviceState != DeviceState.Default)
+                                                    break;
+
                                                 //if (CentreButton.click) break;
                                                 if (CentreButton.ClickedSince(ref clicks))
                                                     break;
@@ -1139,8 +1150,12 @@ namespace AnodeMeter.Hardware
 
         static MassStorage ms  = null;
         static StorageController sd = null;
-        public void DiskDriveMode(bool on)
+        static bool LastReqState = false;   // Consider making the DiskDriveMode method static and adding this to it...
+        public static void DiskDriveMode(bool on)
         {
+            
+            if (on == LastReqState) return;
+            LastReqState = on;
 
         if (on)
             {
@@ -1496,7 +1511,7 @@ namespace AnodeMeter.Hardware
             _gw_wifi = gw_wifi;
             _am = am;
 
-            UsbController = UsbClientController.GetDefault();
+             //UsbController = UsbClientController.GetDefault();
 
             HardwareButton[] Buttons = _amb.GetButtons();
             UpButton = Buttons[0];

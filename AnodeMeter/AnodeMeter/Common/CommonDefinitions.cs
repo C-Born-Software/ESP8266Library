@@ -42,6 +42,7 @@ namespace AnodeMeter
         public static byte Wifi_AP_Index;       // Hints (last succesful AP or server connection)
         public static byte Wifi_Server_Index;
         public static string[] Gateways;
+        public static string StaticIP = "";
         public static bool USBDisable = false;
         public static bool WifiDisable = false;
         public static bool WifiDebug = false;

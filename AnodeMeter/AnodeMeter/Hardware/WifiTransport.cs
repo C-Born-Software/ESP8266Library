@@ -93,6 +93,13 @@ namespace AnodeMeter.Hardware
                 Globals.WifiDisable = true; //So we don't keep trying...
                 return;
             }
+            Globals.WifiInfo["Meter MAC"] = wifi.StationMacAddress;
+            //TODO DAV Add method taking string to library! 19DEC2023
+            if (Globals.StaticIP != "") {
+                wifi.SetOperatingMode(OperatingMode.Station);
+                wifi.EnableDhcp(OperatingMode.Station,false);
+                wifi.SetStationIPAddress(Globals.StaticIP);
+            }
             if (Globals.WifiAPs == null || Globals.Gateways == null || Globals.WifiSyncTime == 0)
             {
                 Debug.WriteLine("WiFi not configured");
@@ -110,6 +117,13 @@ namespace AnodeMeter.Hardware
                         wifi.SetPower(true);
                         if (wifi.GetOperatingMode() != OperatingMode.Station)
                             wifi.SetOperatingMode(OperatingMode.Station);
+                        if (Globals.StaticIP != "")
+                        {
+                            wifi.EnableDhcp(OperatingMode.Station, false);
+                            wifi.SetStationIPAddress(Globals.StaticIP);
+                        } else
+                            wifi.EnableDhcp(OperatingMode.Station, true);
+
                         while (Globals.WifiTestMode)
                         {
                             UpdateApList();
@@ -127,7 +141,7 @@ namespace AnodeMeter.Hardware
             {
                 if (RequestedState == WifiStates.Connected)
                 {
-                    // We have a wifi device. Now we try and connect to and AP, and then a server
+                    // We have a wifi device. Now we try and connect to an AP, and then a server
                     // Once successful, we can flag we have an operation WiFi.
                     // We can keep trying - here, with a retry on fail, or elsewhere...
                     // Once connected we cache the working AP and server index in flash
@@ -140,6 +154,13 @@ namespace AnodeMeter.Hardware
 
                         if (wifi.GetOperatingMode() != OperatingMode.Station)
                             wifi.SetOperatingMode(OperatingMode.Station);
+                        if (Globals.StaticIP != "")
+                        {
+                            wifi.EnableDhcp(OperatingMode.Station, false);
+                            wifi.SetStationIPAddress(Globals.StaticIP);
+                        }
+                        else
+                            wifi.EnableDhcp(OperatingMode.Station, true);
 
                         byte TryCount = 0;
                         byte APNum = Globals.Wifi_AP_Index;
@@ -226,7 +247,7 @@ namespace AnodeMeter.Hardware
                                 sock.SocketClosed += new SocketClosedEventHandler(sock_SocketClosed);
 
                                 Globals.WifiInfo["Meter IP"] = wifi.StationIPAddress.ToString();
-                                //TODO - DAV - Note, currently don't even get connect is no DHCP, so not useful.
+                                //TODO - DAV - Note, currently don't even get connect if no DHCP, so not useful.
                                 // If we do change so can get here, need to determine if the IP is ok. Leave for later, need to ship! (06DEC2020)
                                 Globals.WifiStatus[1] = true;
                                 Globals.WifiInfo["GW Router IP"] = wifi.StationGateway.ToString();

@@ -652,6 +652,11 @@ namespace AnodeMeter
                                 Globals.WifiSyncTime = Convert.ToInt16(RecordParts[1].ToString());
                                 if (Globals.WifiSyncTime == 0) Globals.WifiDisable = true;
                                 break;
+                            case "staticip":
+                                int quoteIndex = Record[i].IndexOf('\"');
+                                if (quoteIndex != -1)
+                                    Globals.StaticIP = Record[i].Substring(quoteIndex);
+                                break;
                         }
                     }
                     if(!FlashLoaded)
