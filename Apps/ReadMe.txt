@@ -1,6 +1,12 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.2.0.6_20231230-1.tca
+==========================
+Adds StaticIP to config (FactoryDefaults.csv)
+Mods to allow use of >=64GB uSD card (Formatted as Large FAT32). Still may get better results with <=32GB cards
+Display WiFi MAC address
+
 Upgrading from firmware 2.2.0.5100 to 2.2.0.6100 (App_2.2.0 to App_2.2.0.6)
 ===========================================================================
 1. Ensure meter is running a recent version of App [Setup->Meter Readings displays "Board: SC20260 FW 2.2.0" (NOT 2.2.0.5100) Built: 2023-01-13 or newer
