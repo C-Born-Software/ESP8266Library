@@ -99,7 +99,7 @@ namespace AnodeMeter.Hardware
                 wifi.SetOperatingMode(OperatingMode.Station);
                 wifi.EnableDhcp(OperatingMode.Station,false);
                 wifi.SetStationIPAddress(Globals.StaticIP);
-            }
+            }          
             if (Globals.WifiAPs == null || Globals.Gateways == null || Globals.WifiSyncTime == 0)
             {
                 Debug.WriteLine("WiFi not configured");
@@ -123,7 +123,7 @@ namespace AnodeMeter.Hardware
                             wifi.SetStationIPAddress(Globals.StaticIP);
                         } else
                             wifi.EnableDhcp(OperatingMode.Station, true);
-
+                        
                         while (Globals.WifiTestMode)
                         {
                             UpdateApList();
@@ -161,7 +161,7 @@ namespace AnodeMeter.Hardware
                         }
                         else
                             wifi.EnableDhcp(OperatingMode.Station, true);
-
+                        
                         byte TryCount = 0;
                         byte APNum = Globals.Wifi_AP_Index;
                         string WifiSSID, WifiPWD;
@@ -427,6 +427,12 @@ namespace AnodeMeter.Hardware
                     if (bytesExpected > 0)
                     {
                         // Expect additional data to make up packet
+                        // Make sure _rxBuff has been allocated
+                        if (_rxBuff == null)
+                        {
+                            Debug.WriteLine("NULL _rxBuff - Allocating (FIX THIS!)");
+                            _rxBuff = new byte[bytesExpected];
+                        }
                         Array.Copy(args.Data, 0, _rxBuff, bytesRead, rxlen);
                         bytesExpected -= rxlen;
                         bytesRead += rxlen;

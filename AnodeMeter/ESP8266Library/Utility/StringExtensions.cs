@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 
 namespace PervasiveDigital.Utilities
@@ -102,6 +103,70 @@ namespace PervasiveDigital.Utilities
         public static string Format(this string value, params string[] args)
         {
             return StringUtilities.Format(value, args);
+        }
+
+        public static string[] SplitQuote(this string input)
+        {
+            string[] tempResult = new string[5];
+            int arraySize = 5;
+            int currentIndex = 0;
+
+            bool inQuotes = false;
+            string currentToken = "";
+
+            for (int i = 0; i < input.Length; i++)
+            {
+                char ch = input[i];
+
+                if (ch == '"' && !inQuotes)
+                {
+                    inQuotes = true;
+                    currentToken += ch;  // Include the opening quote
+                    continue;
+                }
+                else if (ch == '"' && inQuotes)
+                {
+                    inQuotes = false;
+                    currentToken += ch;  // Include the closing quote
+                    continue;
+                }
+
+                if (ch == ',' && !inQuotes)
+                {
+                    tempResult[currentIndex] = currentToken;
+                    currentIndex++;
+
+                    if (currentIndex >= arraySize)
+                    {
+                        arraySize *= 2;
+                        string[] newTempResult = new string[arraySize];
+                        for (int j = 0; j < currentIndex; j++)
+                        {
+                            newTempResult[j] = tempResult[j];
+                        }
+                        tempResult = newTempResult;
+                    }
+
+                    currentToken = "";
+                }
+                else
+                {
+                    currentToken += ch;
+                }
+            }
+
+            if (currentToken != "")
+            {
+                tempResult[currentIndex] = currentToken;
+                currentIndex++;
+            }
+
+            string[] result = new string[currentIndex];
+            for (int i = 0; i < currentIndex; i++)
+            {
+                result[i] = tempResult[i];
+            }
+            return result;
         }
     }
 }
