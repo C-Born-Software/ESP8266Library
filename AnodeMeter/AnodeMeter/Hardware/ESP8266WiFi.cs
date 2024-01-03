@@ -36,6 +36,10 @@ namespace AnodeMeter.Hardware
                     Handshaking = UartHandshake.None,
                 };
                 port.SetActiveSettings(uartSetting);
+
+                port.ReadBufferSize = 8192; // default appears to be 1024. ESP8266 sends in 1460 byte packets. Set to 8192 for now. DAV
+                //int rbl = port.ReadBufferSize;
+                //int wbl = port.WriteBufferSize;
                 Reset();
                 bInit = true;
             }

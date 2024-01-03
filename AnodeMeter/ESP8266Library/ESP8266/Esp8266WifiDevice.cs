@@ -774,7 +774,7 @@ namespace PervasiveDigital.Hardware.ESP8266
         }
 
         public void SetStationIPAddress(IPAddress value, bool persist = false)
-        { 
+        {
             EnsureInitialized();
             lock (_oplock)
             {
@@ -955,7 +955,8 @@ namespace PervasiveDigital.Hardware.ESP8266
                 foreach (var line in response)
                 {
                     var info = Unquote(line.Substring(line.IndexOf(':') + 1));
-                    var tokens = info.Split(',');
+                    //var tokens = info.Split(',');
+                    var tokens = info.SplitQuote(); // Line parser that handles quoted strings (Google puts commas inside SSIDs!)
                     if (tokens.Length >= 4)
                     {
                         var ecn = (Ecn) byte.Parse(tokens[0]);

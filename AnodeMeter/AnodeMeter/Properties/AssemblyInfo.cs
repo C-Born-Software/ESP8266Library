@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("C-Born Software Systems")]
 [assembly: AssemblyProduct("AnodeMeter")]
-[assembly: AssemblyCopyright("Copyright © 2015-2023")]
+[assembly: AssemblyCopyright("Copyright © 2015-2024")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

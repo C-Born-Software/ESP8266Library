@@ -107,7 +107,12 @@ namespace AnodeMeter
             _bWaitingToHibernate = false;
             _lcd.CancelTimedMessages();
         }
-
+        
+        public void TriggerConfigCheck()
+        {
+            _dtQueueConfigCheck = DateTime.Now;
+        }
+        
         private class SelectPotStruct
         {
             public bool _bCanceled;
@@ -744,6 +749,8 @@ namespace AnodeMeter
                         //string res = _gw_wifi.IssueRequest("GetServerUTC", null, null, null, 6000); //TODO Remove - just for testing!
                         //                        string res = _gw_wifi.IssueRequest("GetGatewayVersion", null, null, null, 6000);  //TODO Remove - just for testing
                         //                        Debug.Print("Rcv: " + res);
+
+                        //TODO DAVTEST We may need to disable _noStreamRead before this?
                         _gw_wifi.SetWifi(BinaryTransport.WifiStates.Off);
                     }
                 }
@@ -800,6 +807,7 @@ namespace AnodeMeter
                     // No USB connection to Gateway
                     if (!_bWaitingToHibernate)
                     {
+                        //TODO DAVTEST May need to disable _noStreamRead or otherwise prepare lower-levels before this
                         if (_gw_wifi != null)
                             _gw_wifi.SetWifi(BinaryTransport.WifiStates.Off);   //TODO DAV We could/should Suspend() or Sleep() here?
 
@@ -1826,7 +1834,10 @@ namespace AnodeMeter
                                                 _lcd.ShowTimedMessage("SWBD: " + Globals.BuildDate.ToString("dd-MMM-yy"));
                                                 // Try forcing WiFi connection...
                                                 if (_gw_wifi != null)
+                                                {
+                                                    _dtQueueConfigCheck = DateTime.Now; // Also force a config check (for testing)
                                                     _gw_wifi.SetWifi(BinaryTransport.WifiStates.Connected);
+                                                }
                                             }
                                             break;
 

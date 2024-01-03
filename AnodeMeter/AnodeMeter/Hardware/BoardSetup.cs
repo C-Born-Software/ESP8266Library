@@ -105,7 +105,7 @@ namespace AnodeMeter.Hardware
             setTopLevel = 0, setBackLight, setGreenLED, setRedLED, setLCDBias, setClock, setMeasMode, setLogRawData, setWiFi, setWifiDebug, setWifiVerbose, setSave, setLoad, setAutoScan = 100,
             infoTopLevel = 0, infoBatt, infoInput, infoFirmware, infoBuiltOn, infoSDCard, infoSerial, infoUID,
             modeTopLevel = 0, modeDiskDrive = 2,
-            supportTopLevel = 0, supportPowerOff,supportHibernate, supportBattTest, supportIFU, supportEraseID, supporSetSerial = 100,
+            supportTopLevel = 0, supportPowerOff,supportHibernate, supportBattTest, supportIFU, supportEraseID, supportWifiTest, supporSetSerial = 100,
             wifiTopLevel = 0, wifiStatus, wifiInfo, wifiScan, wifiTop,
             exitTopLevel = 0
         };
@@ -902,7 +902,18 @@ namespace AnodeMeter.Hardware
                                                 break;
                                         }
                                         break;
-
+                                        
+                                        /* -- Not currently required/enabled - DAV
+                                    case MenuItems.supportWifiTest:      // Try some Wifi tests - for now requeue config check
+                                        PrintScreen("WiFi Test", SpecialLCDCharacter.Tick);
+                                        if (CentreButton.click)
+                                        {
+                                            _am.TriggerConfigCheck();
+                                            MenuItem = 0;
+                                            MenuStep = 0;
+                                        }
+                                        break;
+                                        */
                                     case MenuItems.supporSetSerial:   // Set serial number. "Hidden" option, to enter hold right arrow instead of left from previous option
                                         PrintScreen("Set Serial No. ?", "");
                                         if (CentreButton.click)
