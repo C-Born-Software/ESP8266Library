@@ -1,6 +1,17 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.2.0.6_20240105-1.tca
+==========================
+Fixed Tx data chunking on ESP12, specs say max packet size 2048 but that didn't work, currently set to 1000 bytes
+AnodeMeterService also updated this date
+
+App_2.2.0.6_20240103-1.tca
+==========================
+Increase TinyCLR UART Rx buffer size to avoid overrun reading from ESP12
+(Fixes meter config and schedule downloads)
+Long-press on Down button will trigger config check and start Wifi
+
 App_2.2.0.6_20231230-1.tca
 ==========================
 Adds StaticIP to config (FactoryDefaults.csv)

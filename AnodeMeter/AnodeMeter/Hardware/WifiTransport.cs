@@ -374,7 +374,7 @@ namespace AnodeMeter.Hardware
             bool bDone = false;
             if (Data.Length > 0)
             {
-                if (Data.Length > 200) // Make this a defined constant. Could be 1000. Could be 0?
+                if (Data.Length > 0) // 200) // Make this a defined constant. Could be 1000. Could be 0? (Was 200, back to 0 for future reveisions. DAV 5JAN2024)
                 {
                     //#if false // USB way
                     byte[] header =
