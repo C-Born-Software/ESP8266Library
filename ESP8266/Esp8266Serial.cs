@@ -339,6 +339,13 @@ namespace PervasiveDigital.Hardware.ESP8266
             _port.Write(payload, 0, payload.Length);
         }
 
+        public void Write(byte[] payload, int offset, int length)
+        {
+//            if (_enableVerboseOutput)
+//                Dump("SEND:", payload);
+            _port.Write(payload, offset, length);
+        }
+
         private void WriteCommand(string txt)
         {
             if (_enableDebugOutput)

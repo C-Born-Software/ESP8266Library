@@ -729,14 +729,41 @@ namespace PervasiveDigital.Hardware.ESP8266
             }
         }
 
+        private const int MaxPayloadLength = 1000; //2048; // Define the maximum payload length (Specs say 2048 for ESP8266 in AT mode, but seems to have problems with 2000)
+
         internal void SendPayload(int iSocket, byte[] payload)
         {
             EnsureInitialized();
             lock (_oplock)
             {
+                int payloadLength = payload.Length;
+                int offset = 0;
+
+                while (offset < payloadLength)
+                {
+                    // Determine the size of the current chunk
+                    int chunkSize = Math.Min(MaxPayloadLength, payloadLength - offset);
+                    //byte[] payloadChunk = new byte[chunkSize];
+
+                    // Copy the chunk from the original payload
+                    //Array.Copy(payload, offset, payloadChunk, 0, chunkSize);
+
+                    // Send the current chunk
+                    _esp.SendAndExpect(Command(Commands.SendCommand) + iSocket + ',' + chunkSize, OK);
+                    // An '>' character is sent by the 8266 to indicate the device is ready to receive the chunk
+
+                    //_esp.Write(payloadChunk);
+                    _esp.Write(payload, offset, chunkSize);
+                    _esp.Find(Response(Commands.SendCommandReply));
+
+                    // Update the offset for the next chunk
+                    offset += chunkSize;
+                }
+                /*
                 _esp.SendAndExpect(Command(Commands.SendCommand) + iSocket + ',' + payload.Length, OK);
                 _esp.Write(payload);
                 _esp.Find(Response(Commands.SendCommandReply));
+                */
             }
         }
 
