@@ -869,7 +869,7 @@ namespace AnodeMeter.Common
                 catch (Exception ex)
                 {
                     // Badly formed string read in? Default to MinValue above.
-                    Debug.WriteLine("Exception Reading LastSServerSyncTime: " + ex.Message);
+                    Debug.WriteLine("Exception Reading LastServerSyncTime: " + ex.Message);
                 }
 
             }

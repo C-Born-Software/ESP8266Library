@@ -44,6 +44,9 @@ namespace AnodeMeter.Hardware
         // Start WinUSB
         static void StartWinUsb()
         {
+            //Debug.WriteLine("Not Starting WinUSB for TESTING DAV"); //TODO REMOVE DEBUG DAV
+            //return;
+
             Debug.WriteLine("StartWinUsb " + ((winUsb is null) ? "" : "(Skipped)"));
             if (winUsb != null) return;
             UsbController = UsbClientController.GetDefault();
@@ -58,11 +61,13 @@ namespace AnodeMeter.Hardware
         {
             Debug.WriteLine("StopWinUsb " + ((winUsb is null) ? "(Skipped)" : ""));
             if (winUsb == null) return;
+
             winUsb.Disable();
             //winUsb.DeviceStateChanged -= Usb_DeviceStateChanged;
             //winUsb.DataReceived -= Usb_DataReceived;
             winUsb.Dispose();
             winUsb = null;
+
             Thread.Sleep(200);
             Debug.WriteLine("WinUsb Stopped");
         }

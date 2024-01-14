@@ -123,6 +123,9 @@
     <Reference Include="GHIElectronics.TinyCLR.Devices.UsbClient, Version=2.2.0.6000, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\GHIElectronics.TinyCLR.Devices.UsbClient.2.2.0.6000\lib\net48\GHIElectronics.TinyCLR.Devices.UsbClient.dll</HintPath>
     </Reference>
+    <Reference Include="GHIElectronics.TinyCLR.Devices.Watchdog, Version=2.2.0.6000, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\GHIElectronics.TinyCLR.Devices.Watchdog.2.2.0.6000\lib\net48\GHIElectronics.TinyCLR.Devices.Watchdog.dll</HintPath>
+    </Reference>
     <Reference Include="GHIElectronics.TinyCLR.IO, Version=2.2.0.6000, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\GHIElectronics.TinyCLR.IO.2.2.0.6000\lib\net48\GHIElectronics.TinyCLR.IO.dll</HintPath>
     </Reference>

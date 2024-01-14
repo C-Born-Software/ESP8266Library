@@ -110,12 +110,24 @@ namespace Hardware.LcdCharacterDisplay
 
 
             Thread.Sleep(50);                       // LCD controller needs some warm-up time
+#if true
+            _rsPort.Write(PinLo);
+            Write4Bits(0x03);
+            Thread.Sleep(5);
+            Write4Bits(0x03);
+            Thread.Sleep(5);
+            Write4Bits(0x03);
+            Thread.Sleep(5);
+            Write4Bits(0x02);
+            Thread.Sleep(5);
+#else
             for (int i = 0; i < 3; i++)
             {            // we start in 8bit mode, try to set 4 bit mode
                 SendCommand((LcdCommand)0x03);
                 Thread.Sleep(5);                    // wait min 4.1ms
             }
             SendCommand((LcdCommand)0x02);          // set to 4-bit interface
+#endif
 
             SendCommand(LcdCommand.LCD_FUNCTIONSET | LcdCommand.LCD_4BITMODE | LcdCommand.LCD_2LINE | LcdCommand.LCD_5x8DOTS); // set # lines, font size, etc.
             SendCommand(LcdCommand.LCD_ENTRYMODESET | LcdCommand.LCD_ENTRYLEFT | LcdCommand.LCD_ENTRYSHIFTDECREMENT);

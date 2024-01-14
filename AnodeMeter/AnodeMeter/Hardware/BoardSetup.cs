@@ -163,6 +163,7 @@ namespace AnodeMeter.Hardware
                 float AvBattVolts = 0.0F;
                 float vRef = 0.0f;
                 float V3p3 = 3.3f; // Calculated 3.3V volt rail based on 2.5V reference
+                int HiberSecs = 15;
 
                 // If Left button held on startup, scan LCD Bias until user clicks to say they can see it
                 //            LeftButton.Scan();
@@ -554,7 +555,7 @@ namespace AnodeMeter.Hardware
 
                                         break;
                                     case MenuItems.infoFirmware:    // Board type and firmware version
-                                        PrintScreen("Board:" + DeviceInformation.DeviceName, "FW:   " + DeviceInformation.Version.ToVersionString());
+                                        PrintScreen("Board:" + DeviceInformation.DeviceName, "FW:   " + DeviceInformation.Version.ToVersionString(true));
                                         break;
                                     case MenuItems.infoBuiltOn: // Build date from version string
                                                                 //DateTime d = GetBuildDate();
@@ -603,10 +604,10 @@ namespace AnodeMeter.Hardware
                                             PrintScreen("DiskDrive Mode", "Connect ?  " + SpecialLCDCharacter.Tick);
                                             if (CentreButton.click)
                                             {
-                                                //PrintScreen("Rebooting to", "DiskDrive Mode");
-                                                PrintScreen("Switching to", "DiskDrive Mode");
+                                                PrintScreen("Rebooting to", "DiskDrive Mode");
+                                                //PrintScreen("Switching to", "DiskDrive Mode");
                                                 Thread.Sleep(1000);
-                                                //RebootToMs();   // TODO Fix  - Shouldn't get past here. But hopefully can remove this when GHI fixes firmware!
+                                                RebootToMs();   // TODO Fix  - Shouldn't get past here. But hopefully can remove this when GHI fixes firmware!
 
                                                 DiskDriveMode(true);
                                                 MenuItem = MenuItems.modeDiskDrive;
@@ -646,7 +647,9 @@ namespace AnodeMeter.Hardware
                                                 Thread.Sleep(100);
                                             }
                                             Debug.WriteLine("Resuming because state = " + ms.DeviceState);
-                                            //RebootToNormal();
+                                            Thread.Sleep(1000);
+                                            RebootToWinUSB();
+
                                             DiskDriveMode(false);
                                             _ds.FileSystemChanged();    // Files may have been changed so re-check
                                             PrintScreen("Device Mode", "Resuming...");
@@ -710,17 +713,28 @@ namespace AnodeMeter.Hardware
                                         }
                                         break;
                                     case MenuItems.supportHibernate: // Test hibernate
-                                        PrintScreen("Test Hibernate", SpecialLCDCharacter.Tick);
+                                        
+                                        PrintScreen("Test Hibernate", SpecialLCDCharacter.Tick + " (" + HiberSecs + "s)" );
                                         if (CentreButton.click)
                                         {
-                                            PrintScreen("Sleeping...", "");
+                                            PrintScreen("Sleeping...", " (" + HiberSecs + "s)");
                                             Thread.Sleep(1000);
-                                            int res = ConfigureSystem.Meter != null ? ConfigureSystem.Meter.DoHibernate() : 0;
+                                            int res = ConfigureSystem.Meter != null ? ConfigureSystem.Meter.DoHibernate(HiberSecs) : 0;
                                             //int res = ConfigureSystem.Meter != null ? ConfigureSystem.Meter.QuickNap(20): 0;
                                             //ConfigureSystem.Meter?.QuickNap(20);
                                             PrintScreen("Woken by:", res == 0 ? "Timer" : "Button");
                                             Thread.Sleep(1000);
                                             break;
+                                        }
+                                        if(RightButton.click)
+                                        {
+                                            if ((HiberSecs+=10) > 300)
+                                                HiberSecs = 300;
+                                        }
+                                        if(LeftButton.click)
+                                        {
+                                            if ((HiberSecs -= 10) < 5)
+                                                HiberSecs = 5;
                                         }
                                         break;
                                     case MenuItems.supportBattTest:
@@ -1241,7 +1255,7 @@ namespace AnodeMeter.Hardware
                 Mode = UsbClientMode.MassStorage
             });
             //ms = new MassStorage(usbclientController);
-            sd = StorageController.FromName(SC20100.StorageController.SdCard);
+            sd = StorageController.FromName(SC20260.StorageController.SdCard);
             //ms.DeviceStateChanged += Ms_DeviceStateChanged;
             ms.AttachLogicalUnit(sd.Hdc);
             ms.Enable();
@@ -1628,7 +1642,7 @@ namespace AnodeMeter.Hardware
  *  
  *  The Battery Backed memory stuff here could be useful anyway...
  */
-#if false // Not needed now GHI has fixed firmware 
+#if true // Not needed now GHI has fixed firmware (Back in as fix didn't work for all PCs - DAV 14JAN2024)
         // enum for startup flags. 0 = normal (USB), 1 = Mass Storage, 2 = WinUSB
         enum StartFlags : byte
         {
@@ -1647,6 +1661,7 @@ namespace AnodeMeter.Hardware
         static StartFlags GetBBStartFlags()
         {
             byte[] data = ReadBBRam();
+            Debug.WriteLine("BB Ram: " + ((data == null) ? "null" : data.Length.ToString()));
             if (data == null)
                 return StartFlags.Normal;
             return (StartFlags)data[2]; // 1st byte after header
@@ -1709,14 +1724,19 @@ namespace AnodeMeter.Hardware
 
         static void RebootToMode(StartFlags mode)
         {
+            Debug.WriteLine("Rebooting to mode " + mode.ToString());
             SetBBStartFlags(mode);
             //SleepAndFixTime(1);
-            Thread.Sleep(1);                            // without this delay the BB flag doesn't work, assume it it written async on another thread
+            Thread.Sleep(100);                            // without this delay the BB flag doesn't work, assume it it written async on another thread
             GHIElectronics.TinyCLR.Native.Power.Reset();
         }
         static void RebootToMs()
         {
             RebootToMode(StartFlags.MassStorage);
+        }
+        static void RebootToWinUSB()
+        {
+            RebootToMode(StartFlags.WinUSB);
         }
         static void RebootToNormal()
         {
@@ -1741,9 +1761,9 @@ namespace AnodeMeter.Hardware
             SystemTime.SetTime(rtc.Now);
         }
 #endif
-        public bool BootToMassStorage()
+        private StartFlags LastStartFlags = StartFlags.Normal;
+        private StartFlags ReadAndClearStartFlags()
         {
-#if false   // Unused for now...
             var ResetSource = GHIElectronics.TinyCLR.Native.Power.GetResetSource();
             if (ResetSource == ResetSource.SystemReset)
             {
@@ -1752,10 +1772,17 @@ namespace AnodeMeter.Hardware
                 Debug.WriteLine("StartFlags = " + sflags);
                 SetBBStartFlags(StartFlags.Normal);
 
-                return (sflags == StartFlags.MassStorage);
+                LastStartFlags = sflags;
             }
-#endif
-            return false;
+            return LastStartFlags;
+        }
+        public bool BootedToMassStorage()
+        {
+            return (ReadAndClearStartFlags() == StartFlags.MassStorage);
+        }
+        public bool BootedToWinUSB()
+        {
+            return (LastStartFlags == StartFlags.WinUSB);
         }
     }
 
@@ -1858,6 +1885,8 @@ namespace AnodeMeter.Hardware
             //AppBase = "app_" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
             AppBase = "app_" + DeviceInformation.Version.ToVersionString();
             int AppBaseLen = AppBase.Length;
+            int CurrentSVn = 0;
+            _ = int.TryParse(DeviceInformation.Version.ToVersionString(true).Right(4), out CurrentSVn); // Should get the latest build, eg 6200, as int
 
             HaveFW = false;
             fw = null;
@@ -1869,15 +1898,16 @@ namespace AnodeMeter.Hardware
                 AppName = file; // fn;
                 HaveUpdate = true;
                 NeedFWUpdate = false;
-                return;
-            }
+                //return;
+            } else NeedFWUpdate = true;
+
             // No Version-Matched App - try for any match, and confirm FW files exist
             if (MatchFile(fn, "App_", ".tca"))
             {
                 // Found a non version matched application
                 AppName = file; // fn;
                 HaveUpdate = true;
-                NeedFWUpdate = true;
+                //NeedFWUpdate = true;
 
                 string[] dirs = fn.Split('_');
                 if (dirs.Length > 1)
@@ -1888,21 +1918,29 @@ namespace AnodeMeter.Hardware
                     string sdkpath = Path + "SDK_" + d + @"\";
                     if (Directory.Exists(sdkpath))
                     {
+                        int svn = 0;
                         string[] FWFiles = Directory.GetFiles(sdkpath);
                         foreach (string f in FWFiles)
                         {
                             //fw = sdkpath + "Firmware.ghi";
-                            if (f.Right(4).ToLower() == ".ghi")
+                            if (f.Length > 8 && f.Right(4).ToLower() == ".ghi")
                             //                                                if (MatchFile(f, "", "ghi"))
                             {
+                                int vn = 0;
+                                _ = int.TryParse(f.Substring(f.Length - 8, 4), out vn);
                                 if (File.Exists(f))
                                 {
-                                    fw = f;
-                                    HaveFW = true;
-                                    return;
+                                    if(vn > svn)
+                                    {   // Use the highest matching subversion if more than one file
+                                        svn = vn;
+                                        fw = f;
+                                        HaveFW = true;
+                                        if(vn > CurrentSVn)
+                                        {
+                                            NeedFWUpdate = true;    // Compatible, but a newer build exists so load it
+                                        }
+                                    }
                                 }
-                                else
-                                    fw = null;
                             }
                         }
                     }

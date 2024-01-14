@@ -55,6 +55,7 @@ namespace AnodeMeter
         public static bool WifiTestMode = false; // Use when testing so normal operations don't step on us
 
         public static bool SleepOverride = false;   // Set if values have been overridden from SD card
+        public static int ShutDownAfterMinutes = 59;    // Shutdown after hibernating for this time. (May change if using WiFi?)
 
         public enum ConfigState : byte { Unknown, NotConfigured, ConfigOK, UpdatingConfig };
 

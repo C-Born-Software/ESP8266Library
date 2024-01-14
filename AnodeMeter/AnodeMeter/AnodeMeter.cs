@@ -5,9 +5,10 @@ using System.Collections;
 using System.Diagnostics;
 using Hardware.LcdCharacterDisplay;
 using System.Threading;
-using GHIElectronics.TinyCLR.Data.Xml;
+//using GHIElectronics.TinyCLR.Data.Xml;
 using GHIElectronics.TinyCLR.Native;
-using GHIElectronics.TinyCLR.Update;
+//using GHIElectronics.TinyCLR.Update;
+//using GHIElectronics.TinyCLR.Devices.Watchdog;
 using System.Reflection;
 using AnodeMeter.Common;
 using AnodeMeter.Hardware;
@@ -826,7 +827,7 @@ namespace AnodeMeter
         {
             return _sys.Hibernate(seconds);
         }
-        public int DoHibernate(int ShutDownAfterMinutes = 59)
+        public int DoHibernate(int SecondsToHibernate = 59 * 60)
         {
             int res = 0;
             // Time to Sleep
@@ -839,7 +840,7 @@ namespace AnodeMeter
             ESP8266WiFi.PowerOff(true);
 
             _lcd.Suspend();
-            res = _sys.Hibernate();
+            res = _sys.Hibernate(SecondsToHibernate);
             _lcd.Resume();
 
             // TODO DAV - Remove this when GHI fixes SDK4.3
@@ -858,7 +859,7 @@ namespace AnodeMeter
             _lcd.ReInit();
 
             // If we have been hibernating for >x (default  59) minutes (selectable later?) then may as well power off
-            if ((ShutDownAfterMinutes > 0) &&  (secs > (60 * ShutDownAfterMinutes)) && (_bsp != null))
+            if ((Globals.ShutDownAfterMinutes > 0) &&  (secs > (60 * Globals.ShutDownAfterMinutes)) && (_bsp != null))
                 _bsp.PowerOff("Power Off", 15);
             return res;
         }
@@ -1228,7 +1229,8 @@ namespace AnodeMeter
 
             // Boot to MassStorage mode? (There may well be better locations for this!)
             if (_bsp != null)
-                if (_bsp.BootToMassStorage() )   // Check flag in battery-backed memory
+            {
+                if (_bsp.BootedToMassStorage())   // Check flag in battery-backed memory
                 {
                     //_bsp.DiskDriveMode(true);
                     _bsp.EnterSetupMode(BoardSetup.MenuTypes.Mode, BoardSetup.MenuItems.modeDiskDrive, 0);
@@ -1236,12 +1238,12 @@ namespace AnodeMeter
                 else
                     TransportInit();    // Initialize USB and WiFi transports
 
+                if(_bsp.BootedToWinUSB())
+                    _bsp.EnterSetupMode(BoardSetup.MenuTypes.Mode, 0, 0);
 
-
-            if (!_tm.IsSystemTimeOK())
-            {
-                if (_bsp != null)
+                if (!_tm.IsSystemTimeOK())
                     _bsp.EnterSetupMode(BoardSetup.MenuTypes.Settings, BoardSetup.MenuItems.setClock, 3);
+
             }
         }
 

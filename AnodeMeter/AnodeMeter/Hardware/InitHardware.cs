@@ -9,6 +9,9 @@ using GHIElectronics.TinyCLR.Devices.Storage;
 using System.Diagnostics;
 using GHIElectronics.TinyCLR.Devices.Rtc.Provider;
 using GHIElectronics.TinyCLR.Devices.Rtc;
+using GHIElectronics.TinyCLR.Devices.Watchdog;
+using System.Threading;
+using GHIElectronics.TinyCLR.Devices.Gpio;
 
 namespace AnodeMeter.Hardware
 {
@@ -150,26 +153,54 @@ namespace AnodeMeter.Hardware
             //TODO DAV Fixed Wakeup for 4.3 and RTC!!
             ///PowerState.WakeupEvents |= (HardwareEvent.OEMReserved1 | HardwareEvent.OEMReserved2);
             ///PowerState.Sleep(SleepLevel.DeepSleep, HardwareEvent.OEMReserved1 | HardwareEvent.OEMReserved2);
+            
+            if (!WDogThreadRunning)
+            {
+                WatchDog = WatchdogController.GetDefault();
+                WatchDog.Enable(32000);
+                new Thread(RunWatchDog).Start();
+                WDogThreadRunning = true;
+            }
+
             var rtc = RtcController.GetDefault();
             var StartTime = DateTime.Now;
             Globals.ButtonPressed = false;
-            const int MaxSleep =  4 * 60;
+            const int MaxSleep = 30; // 4 * 60;
             while(seconds > 0) 
             {
-                // Wake up every 4 minutes to get around bug in GHI firmware
+                // Wake up every 4 minutes (30 seconds!) to get around bug in GHI firmware
                 int SecondsToSleep = (seconds > MaxSleep) ? MaxSleep : seconds;
                 Debug.WriteLine("Sleeping for: " + SecondsToSleep + "s of " + seconds);
                 DateTime dt = rtc.Now;
-                Debug.WriteLine("Sleep from " + dt + " (" + DateTime.Now + ")  to " + rtc.Now.AddSeconds(SecondsToSleep));
+                Debug.WriteLine("Sleep from " + dt + " (" + DateTime.Now + ") to " + rtc.Now.AddSeconds(SecondsToSleep));
+                WatchDog.Reset();
                 Power.Sleep(rtc.Now.AddSeconds(SecondsToSleep));
+                WatchDog.Reset();
                 SystemTime.SetTime(rtc.Now);
                 if (Globals.ButtonPressed) break;
                 seconds -= SecondsToSleep;
                 Debug.WriteLine("Sleep to go: " + seconds);
             }
-            Debug.WriteLine("Slept for " + (rtc.Now - StartTime).TotalSeconds + " Seconds");
+            Debug.WriteLine("Slept for " + (rtc.Now - StartTime).TotalSeconds + " Seconds)");
 
             return seconds; // Zero if timed out, else buttonpush (and equals seconds before scheduled timeout)
+        }
+
+        static WatchdogController WatchDog = null;
+
+        static bool WDogThreadRunning = false;
+        static void RunWatchDog()
+        {
+            // Set watchdog to 5 seconds and reset it every 4 seconds
+            //WatchDog = WatchdogController.GetDefault();
+            //WatchDog.Enable(32000);
+
+            while (true)
+            {
+                //reset the timer
+                WatchDog.Reset();
+                Thread.Sleep(4000);
+            }
         }
     }
 }

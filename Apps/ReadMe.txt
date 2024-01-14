@@ -1,6 +1,16 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.2.0.6_20240114-1.tca
+==========================
+GHI's USB MassStorage switch fix doesn't work for all PCs. In testing on 7 PCs here, it worked on 3 of the 7.
+This version goes back to rebooting to switch between modes until GHI comes up with a reliable fix.
+
+App_2.2.0.6_20240111-1.tca
+==========================
+This version written for GHI's release v2.2.0.6200 which was meant to fix the RTC sleep/wake problem, but seems it hasn't.
+It contains a fix for updating Apps where the firmware version is still compatible, but a newer versionis available. (eg 2.2.0.6100 to 2.2.0.6200)
+
 App_2.2.0.6_20240105-1.tca
 ==========================
 Fixed Tx data chunking on ESP12, specs say max packet size 2048 but that didn't work, currently set to 1000 bytes
