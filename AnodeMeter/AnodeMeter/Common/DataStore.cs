@@ -118,6 +118,12 @@ namespace AnodeMeter.Common
                 string[] foldersToPurge = new string[] { Folders.OldMeasurementsPath, Folders.LogsPath, Folders.LogsArchivePath, Folders.SchedPath };
                 foreach (string folder in foldersToPurge)
                 {
+                    // Added for debugging...
+                    // Check for the existence of "KeepOldFiles" in the current folder
+                    // If found, skip the current folder and continue with the next one
+                    if (File.Exists(Path.Combine(folder, "KeepOldFiles")))
+                        continue;
+
                     string[] files = Directory.GetFiles(folder);
                     foreach (string fil in files)
                     {
@@ -650,6 +656,12 @@ namespace AnodeMeter.Common
 
                 foreach (string folder in foldersToPurge)
                 {
+                    // Added for debugging...
+                    // Check for the existence of "KeepOldFiles" in the current folder
+                    // If found, skip the current folder and continue with the next one
+                    if (File.Exists(Path.Combine(folder, "KeepOldFiles")))
+                        continue;
+                    
                     string[] files = Directory.GetFiles(folder);
                     foreach (string fil in files)
                     {

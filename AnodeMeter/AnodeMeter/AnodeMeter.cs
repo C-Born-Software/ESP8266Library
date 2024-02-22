@@ -1912,7 +1912,7 @@ namespace AnodeMeter
             //topLineofDisplay += " " + _bc.BatteryVoltage.ToString("F1") + "v";
             string bottomLineofDisplay;
 
-            if (_dtShiftOfLoadedSchedules > DateTime.MaxValue)
+            if (_dtShiftOfLoadedSchedules > DateTime.MinValue)
             {
                 string Year = _dtShiftOfLoadedSchedules.Year.ToString();
                 string Month = _dtShiftOfLoadedSchedules.Month.ToString();

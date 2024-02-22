@@ -30,6 +30,7 @@ namespace AnodeMeter
                     // Extend heap if not already done. System will reset if this is required
                     if (GHIElectronics.TinyCLR.Native.Memory.IsExtendedHeap() == false)
                     {
+                        //Debug.WriteLine("Extending heap Disabled for testing, FIX!");// TODO DAV DEBUG
                         GHIElectronics.TinyCLR.Native.Memory.ExtendHeap();
                         GHIElectronics.TinyCLR.Native.Power.Reset();
                     }
