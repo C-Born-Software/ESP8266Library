@@ -2278,7 +2278,8 @@ namespace AnodeMeter
 
             while (iRetryCnt++ < 3 && bAttemptFetch)
             {
-                thisSched = ActiveGW().IssueRequest("GetSelectedScheduleRqstAll", null, null, null, 20000);
+                //thisSched = ActiveGW().IssueRequest("GetSelectedScheduleRqstAll", null, null, null, 20000);
+                thisSched = ActiveGW().IssueRequest("GetSelectedScheduleRqstAll", "ScheduleFor", "MeterNumber", _sys.GetMeterNumber.ToString(), 60000);
 
                 if (thisSched != "")
                 {
