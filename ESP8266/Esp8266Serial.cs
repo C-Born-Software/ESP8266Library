@@ -34,8 +34,10 @@ namespace PervasiveDigital.Hardware.ESP8266
         private readonly byte[] _ipdSequence;
 
         // Circular buffers that will grow in 256-byte increments - one for commands and one for received streams
-        private readonly CircularBuffer _buffer = new CircularBuffer(512, 1, 256);
-        private readonly CircularBuffer _stream = new CircularBuffer(512, 1, 256);
+        //        private readonly CircularBuffer _buffer = new CircularBuffer(512, 1, 256);
+        //        private readonly CircularBuffer _stream = new CircularBuffer(512, 1, 256);
+        private readonly CircularBuffer _buffer = new CircularBuffer(65536, 1, 4096);   // Let's try to avoid buffer resizing, as it seems to break the ProcessBufferedInput() handling. Perhaps changes to idx values? DAV
+        private readonly CircularBuffer _stream = new CircularBuffer(4096, 1, 256);
 
         public event DataReceivedHandler DataReceived;
         public event SocketOpenedHandler SocketOpened;
