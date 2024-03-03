@@ -31,6 +31,7 @@ namespace PervasiveDigital.Utilities
             _size = 0;
             _head = 0;
             _tail = 0;
+            _capacity = capacity;
             _buffer = new byte[capacity];
             _growM = growthMultiplier;
             _growC = growthConstant;
