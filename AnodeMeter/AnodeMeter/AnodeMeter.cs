@@ -14,6 +14,7 @@ using AnodeMeter.Common;
 using AnodeMeter.Hardware;
 using PervasiveDigital.Utilities;
 using AnalogInput = AnodeMeter.Common.AnalogInput;
+using System.Net;
 
 namespace AnodeMeter
 {
@@ -97,6 +98,7 @@ namespace AnodeMeter
         private const string NO_METERING_SCHEDULED = "No Pots Scheduled";
         private Int16 HouseKeepDivider = 0;
         private Int16 WifiCheckDivider = 0;
+        private static bool bForceScheduleReload = false;   // Use for testing, set on down button hold in WiFi mode. DAV 17JAN2024
 
         public BinaryTransport ActiveGW()
         {
@@ -584,7 +586,7 @@ namespace AnodeMeter
                             continue;
                         string[] RecordParts = rp.SplitCsv();
                         bool HasP1 = RecordParts.Length > 1;
-                        string p1;
+                        string p1 = "";
                         byte p1b = 25;
                         if (HasP1)
                         {
@@ -638,6 +640,9 @@ namespace AnodeMeter
                                 break;
                             case "gateway":
                                 Globals.Gateways = RecordParts;
+                                break;
+                            case "ipaddress":
+                                if (HasP1) Globals.IpAddress = IPAddress.Parse(p1);
                                 break;
                             case "usbdisable":
                                 if (HasP1) Globals.USBDisable = (p1b != 0);
@@ -946,27 +951,21 @@ namespace AnodeMeter
                     _dtShiftWanted = (SmelterDetails.GetShiftStartTime(DateTime.Now.AddMinutes(GlobalConsts.MINUTES_BEFORE_SHIFT_TO_LOAD_SCHEDULES)));
                     _dtSchedAttemptFetchTime = _dtShiftWanted - new TimeSpan(TimeSpan.TicksPerMinute * GlobalConsts.MINUTES_BEFORE_SHIFT_TO_LOAD_SCHEDULES);
 
-                    if (_dtShiftOfLoadedSchedules < _dtShiftWanted && DateTime.Now > _dtWaitaFewSeconds)
+                    if ((_dtShiftOfLoadedSchedules < _dtShiftWanted && DateTime.Now > _dtWaitaFewSeconds) || bForceScheduleReload)
                     {
-                        if (_dtShiftOfLoadedSchedules == DateTime.MinValue || DataStore.ScheduleFileCreationTime() < _dtSchedAttemptFetchTime)
+                        if ((_dtShiftOfLoadedSchedules == DateTime.MinValue || DataStore.ScheduleFileCreationTime() < _dtSchedAttemptFetchTime) || bForceScheduleReload)
                         {
                             DataStore.DeleteOldScheduleFiles();
                             if (LoadSchedulesFileToDisk())
-                            {
                                 _dtShiftOfLoadedSchedules = _dtShiftWanted;
-                                _dtWaitaFewSeconds = DateTime.Now.AddSeconds(3);
-                            }
-                            else
-                            {
-                                _dtWaitaFewSeconds = DateTime.Now.AddSeconds(3);
-                            }
+                            bForceScheduleReload = false;
                         }
                         else
                         {
                             _lcd.ShowTimedMessage("Schedules Ready", 3);
-                            _dtWaitaFewSeconds = DateTime.Now.AddSeconds(3);
                             _dtShiftOfLoadedSchedules = _dtShiftWanted;
                         }
+                        _dtWaitaFewSeconds = DateTime.Now.AddSeconds(3);
                     }
                 }
                 // Check if we've got the most recent Site-Config info
@@ -1838,6 +1837,7 @@ namespace AnodeMeter
                                                 if (_gw_wifi != null)
                                                 {
                                                     _dtQueueConfigCheck = DateTime.Now; // Also force a config check (for testing)
+                                                    bForceScheduleReload = true;        // and Schedule reload  DAV 17JAN2024
                                                     _gw_wifi.SetWifi(BinaryTransport.WifiStates.Connected);
                                                 }
                                             }

@@ -151,7 +151,8 @@ namespace AnodeMeter.Hardware
                         wifi.EnableDebugOutput = true;
                         //wifi.EnableVerboseOutput = true;
                         //TODO Remove from final code, or make conditional from setup file or compile option
-
+                        try
+                        {
                         if (wifi.GetOperatingMode() != OperatingMode.Station)
                             wifi.SetOperatingMode(OperatingMode.Station);
                         if (Globals.StaticIP != "")
@@ -161,6 +162,10 @@ namespace AnodeMeter.Hardware
                         }
                         else
                             wifi.EnableDhcp(OperatingMode.Station, true);
+                        }
+                        catch (Exception e)
+                        {
+                        }
                         
                         byte TryCount = 0;
                         byte APNum = Globals.Wifi_AP_Index;
@@ -172,6 +177,9 @@ namespace AnodeMeter.Hardware
                                 APNum = 1;
                             WifiSSID = Globals.WifiAPs[APNum];
                             WifiPWD = Globals.WifiAPs[APNum + 1];
+
+                            if (Globals.IpAddress != null)
+                                wifi.SetStationIPAddress(Globals.IpAddress);
 
                             // Quick hardcoded test for FJA
                             //WifiSSID = "StarProbe09";

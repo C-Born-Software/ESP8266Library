@@ -604,10 +604,14 @@ namespace AnodeMeter.Hardware
                                             PrintScreen("DiskDrive Mode", "Connect ?  " + SpecialLCDCharacter.Tick);
                                             if (CentreButton.click)
                                             {
+#if REBOOT_TO_MS
                                                 PrintScreen("Rebooting to", "DiskDrive Mode");
-                                                //PrintScreen("Switching to", "DiskDrive Mode");
                                                 Thread.Sleep(1000);
                                                 RebootToMs();   // TODO Fix  - Shouldn't get past here. But hopefully can remove this when GHI fixes firmware!
+#else
+                                                PrintScreen("Switching to", "DiskDrive Mode");
+#endif
+                                                Thread.Sleep(1000);
 
                                                 DiskDriveMode(true);
                                                 MenuItem = MenuItems.modeDiskDrive;
@@ -648,8 +652,9 @@ namespace AnodeMeter.Hardware
                                             }
                                             Debug.WriteLine("Resuming because state = " + ms.DeviceState);
                                             Thread.Sleep(1000);
+#if REBOOT_TO_MS
                                             RebootToWinUSB();
-
+#endif
                                             DiskDriveMode(false);
                                             _ds.FileSystemChanged();    // Files may have been changed so re-check
                                             PrintScreen("Device Mode", "Resuming...");

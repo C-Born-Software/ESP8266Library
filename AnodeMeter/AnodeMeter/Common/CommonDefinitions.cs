@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Diagnostics;
+using System.Net;
 
 namespace AnodeMeter
 {
@@ -43,6 +44,7 @@ namespace AnodeMeter
         public static byte Wifi_Server_Index;
         public static string[] Gateways;
         public static string StaticIP = "";
+        public static IPAddress IpAddress = null;
         public static bool USBDisable = false;
         public static bool WifiDisable = false;
         public static bool WifiDebug = false;
