@@ -5,16 +5,24 @@ using System.Diagnostics;
 using System.Net;
 using System.Threading;
 using System.Runtime.CompilerServices;
+#if MF_FRAMEWORK
+using Microsoft.SPOT;
+using Microsoft.SPOT.Hardware;
+#endif
+#if TINYCLR
 using GHIElectronics.TinyCLR.Devices.Gpio;
 using GHIElectronics.TinyCLR.Devices.Uart;
 using GHIElectronics.TinyCLR.Pins;
 using GHIElectronics.TinyCLR.Networking.Net;
 using GHIElectronics.TinyCLR.Devices.Uart.Provider;
 using GHIElectronics.TinyCLR.Native;
+#endif
 using System.Security.Cryptography.X509Certificates;
+
 using PervasiveDigital.Net;
 using PervasiveDigital.Utilities;
 
+#if TINYCLR
 using SerialPort = GHIElectronics.TinyCLR.Devices.Uart.UartController;
 
 #warning // TODO DAV - Fix this. Where to put it?
@@ -44,6 +52,7 @@ namespace System.IO.Ports
         }
     }
 }
+#endif
 
 namespace PervasiveDigital.Hardware.ESP8266
 {
@@ -262,7 +271,7 @@ namespace PervasiveDigital.Hardware.ESP8266
                 }
                 catch (Exception e)
                 {
-                    Debug.WriteLine("No Response: " + e.Message);
+                    Dbg.WriteLine("No Response: " + e.Message);
                 }
             } while (--pingRetries > 0 && !pingSuccess);
             return pingSuccess;
@@ -742,7 +751,7 @@ namespace PervasiveDigital.Hardware.ESP8266
                 while (offset < payloadLength)
                 {
                     // Determine the size of the current chunk
-                    int chunkSize = Math.Min(MaxPayloadLength, payloadLength - offset);
+                    int chunkSize = System.Math.Min(MaxPayloadLength, payloadLength - offset);
                     //byte[] payloadChunk = new byte[chunkSize];
 
                     // Copy the chunk from the original payload

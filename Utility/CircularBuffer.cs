@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
 using System.Threading;
-//using Microsoft.SPOT;
+#if MF_FRAMEWORK
+using Microsoft.SPOT;
+#endif
 
 namespace PervasiveDigital.Utilities
 {
@@ -316,8 +318,8 @@ namespace PervasiveDigital.Utilities
         {
             get { return false; }
         }
-#if false   // TODO DAV - Can't get this working with TinyCLR yet :(
-        IEnumerator IEnumerable GetEnumerator()
+#if MF_FRAMEWORK   // TODO DAV - Can't get this working with TinyCLR yet :(
+        public IEnumerator  GetEnumerator()
         {
             int bufferIndex = _head;
             for (int i = 0; i < _size; i++, bufferIndex++)
@@ -328,6 +330,14 @@ namespace PervasiveDigital.Utilities
                 yield return _buffer[bufferIndex];
             }
         }
+        // Explicit interface implementation for IEnumerable.GetEnumerator
+        // This is required because ICollection inherits from IEnumerable
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            // Calls the public GetEnumerator() method
+            return GetEnumerator();
+        }
+
 #else
         IEnumerator IEnumerable.GetEnumerator()
         {

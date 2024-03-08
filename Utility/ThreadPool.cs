@@ -147,7 +147,7 @@ namespace PervasiveDigital.Utilities
          lock (_Threads)
          {
             _Threads.Add(new ThreadPoolThread());
-            Debug.WriteLine("ThreadPool thread created: #" + _Threads.Count);
+            Dbg.WriteLine("ThreadPool thread created: #" + _Threads.Count);
          }
       }
 
@@ -174,7 +174,7 @@ namespace PervasiveDigital.Utilities
             {
                thread.Dispose();
                _Threads.Remove(thread);
-               Debug.WriteLine("ThreadPool thread stoped: #" + _Threads.Count);
+               Dbg.WriteLine("ThreadPool thread stopped: #" + _Threads.Count);
                return false;
             }
          }

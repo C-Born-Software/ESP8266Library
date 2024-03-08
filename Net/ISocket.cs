@@ -1,5 +1,7 @@
 using System;
-//using Microsoft.SPOT;
+#if MF_FRAMEWORK_VERSION_V4_3
+using Microsoft.SPOT;
+#endif
 
 namespace PervasiveDigital.Net
 {

@@ -29,6 +29,65 @@ namespace PervasiveDigital.Utilities
             return new string(_chars, 0, _charsUsed);
         }
 
+        // Converter for debugging (ChatGPT)
+        public static string ConvertByteArrayToString(byte[] byteArray)
+        {
+            return ConvertByteArrayToString(byteArray, byteArray.Length);
+        }
+
+        public static string ConvertByteArrayToString(byte[] byteArray, int len)
+        {
+            StringBuilder sb = new StringBuilder();
+            int consecutiveZeros = 0; // Counter for consecutive 0x00 bytes
+
+            for (int i = 0; i < len; i++)
+            {
+                if ((byteArray[i] >= 32 && byteArray[i] <= 126) || byteArray[i] == 0x0d)
+                {
+                    if (consecutiveZeros > 3)
+                    {
+                        sb.Append(" [+").Append(consecutiveZeros - 3).Append(']');
+                    }
+                    consecutiveZeros = 0; // Reset counter since this is a printable character
+                    sb.Append((char)byteArray[i]);
+                }
+                else
+                {
+                    if (byteArray[i] == 0)
+                    {
+                        consecutiveZeros++;
+                        if (consecutiveZeros <= 3)
+                        {
+                            // Append the 0x00 bytes directly up to the first three
+                            if (consecutiveZeros == 1) sb.Append("\n0x00");
+                            else sb.Append(",0x00");
+                        }
+                        // For more than three, do not append directly; handled after the loop
+                    }
+                    else
+                    {
+                        if (consecutiveZeros > 3)
+                        {
+                            // If transitioning from a sequence of >3 zeros to a non-zero, append the notation now
+                            sb.Append(" [+").Append(consecutiveZeros - 3).Append(']');
+                        }
+                        consecutiveZeros = 0; // Reset counter for any non-0x00 non-printable byte
+                        sb.Append('\n').Append("0x").Append(byteArray[i].ToString("X2")).Append('\n'); // Handle as individual non-printable
+                    }
+                }
+            }
+
+            // Handle case where the byte array ends with more than three 0x00 bytes
+            if (consecutiveZeros > 3)
+            {
+                sb.Append(" [+").Append(consecutiveZeros - 3).Append("]\n");
+            }
+
+            return sb.ToString();
+        }
+
+ 
+
         public static bool IsNullOrEmpty(string s)
         {
             return s == null || s.Length == 0;
