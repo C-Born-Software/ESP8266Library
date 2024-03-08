@@ -5,13 +5,17 @@ using System.Collections;
 using System.IO.Ports;
 using System.Text;
 using System.Threading;
-//using Microsoft.SPOT;
+#if MF_FRAMEWORK_VERSION_V4_3
+using Microsoft.SPOT;
+#endif
 using System.Diagnostics;
+#if TINYCLR
 using GHIElectronics.TinyCLR.Devices.Uart;
-using PervasiveDigital.Utilities;
-
 using SerialPort = GHIElectronics.TinyCLR.Devices.Uart.UartController;
 using DataReceivedEventArgs = GHIElectronics.TinyCLR.Devices.Uart.DataReceivedEventArgs;
+#endif
+
+using PervasiveDigital.Utilities;
 
 namespace PervasiveDigital.Hardware.ESP8266
 {
@@ -20,7 +24,9 @@ namespace PervasiveDigital.Hardware.ESP8266
     internal class Esp8266Serial
     {
         public delegate void DataReceivedHandler(object sender, byte[] stream, int channel);
+
         public delegate void SocketOpenedHandler(object sender, int channel, out bool fHandled);
+
         public delegate void SocketClosedHandler(object sender, int channel);
 
         public const int DefaultCommandTimeout = 10000;
@@ -34,8 +40,8 @@ namespace PervasiveDigital.Hardware.ESP8266
         private readonly byte[] _ipdSequence;
 
         // Circular buffers that will grow in 256-byte increments - one for commands and one for received streams
-        //        private readonly CircularBuffer _buffer = new CircularBuffer(512, 1, 256);
-        //        private readonly CircularBuffer _stream = new CircularBuffer(512, 1, 256);
+//        private readonly CircularBuffer _buffer = new CircularBuffer(512, 1, 256);
+//        private readonly CircularBuffer _stream = new CircularBuffer(512, 1, 256);
         private readonly CircularBuffer _buffer = new CircularBuffer(65536, 1, 4096);   // Let's try to avoid buffer resizing, as it seems to break the ProcessBufferedInput() handling. Perhaps changes to idx values? DAV
         private readonly CircularBuffer _stream = new CircularBuffer(4096, 1, 256);
 
@@ -61,20 +67,30 @@ namespace PervasiveDigital.Hardware.ESP8266
         public void Start()
         {
             _port.DataReceived += PortOnDataReceived;
+#if MF_FRAMEWORK_VERSION_V4_3
+            _port.Open();
+#else
             _port.Enable();
+#endif
         }
 
+#if TINYCLR
         private void _port_DataReceived(SerialPort sender, DataReceivedEventArgs e)
         {
             throw new NotImplementedException();
         }
+#endif
 
         public void Stop()
         {
+#if MF_FRAMEWORK_VERSION_V4_3
+            _port.Close();
+#else
             _port.Disable();
+#endif
             _port.DataReceived -= PortOnDataReceived;
             //Debug.WriteLine("noStreamRead Unblock on Stop()");
-            _noStreamRead.Set();//TODO DAV - Is this right? Reset() or Set()?
+            _noStreamRead.Set(); //TODO DAV - Is this right? Reset() or Set()?
         }
 
         public int CommandTimeout { get; set; }
@@ -116,7 +132,8 @@ namespace PervasiveDigital.Hardware.ESP8266
             {
                 DiscardBufferedInput();
                 WriteCommand(send);
-                Expect(new[] { send, "no change", "link is not valid" }, expect, timeout); // TODO Perhaps add generic acceptable array - ESP AT keeps changing. DAV
+                Expect(new[] {send, "no change", "link is not valid"}, expect, timeout);
+                    // TODO Perhaps add generic acceptable array - ESP AT keeps changing. DAV
             }
         }
 
@@ -153,7 +170,7 @@ namespace PervasiveDigital.Hardware.ESP8266
             return SendAndReadUntil(send, terminator, null, timeout);
         }
 
-        public string[] SendAndReadUntil(string send, string terminator, string[]badresp, int timeout)
+        public string[] SendAndReadUntil(string send, string terminator, string[] badresp, int timeout)
         {
             ArrayList result = new ArrayList();
             if (send != null)
@@ -177,7 +194,7 @@ namespace PervasiveDigital.Hardware.ESP8266
                     }
                 }
             } while (true);
-            return (string[])result.ToArray(typeof(string));
+            return (string[]) result.ToArray(typeof(string));
         }
 
         public string SendCommandAndReadReply(string command)
@@ -218,7 +235,7 @@ namespace PervasiveDigital.Hardware.ESP8266
         public void Expect(string[] accept, string expect, int timeout)
         {
             if (accept == null)
-                accept = new[] { "" };
+                accept = new[] {""};
 
             bool acceptableInputFound;
             string response;
@@ -260,7 +277,7 @@ namespace PervasiveDigital.Hardware.ESP8266
                 {
                     if (_responseQueue.Count > 0)
                     {
-                        response = (string)_responseQueue.Dequeue();
+                        response = (string) _responseQueue.Dequeue();
                     }
                     else
                     {
@@ -282,7 +299,7 @@ namespace PervasiveDigital.Hardware.ESP8266
             }
 
             if (_enableDebugOutput)
-                Debug.WriteLine("Consumed: " + response);
+                Dbg.WriteLine("Consumed: " + response);
 
             return response;
         }
@@ -296,6 +313,9 @@ namespace PervasiveDigital.Hardware.ESP8266
             _port.Read(received, 0, arraySize);
             if (_enableVerboseOutput)
                 Dump("RECV:", received);
+            
+            // Add the received data to the DebugBuffer for later comparison
+            // AddToDebugBuffer(received);
 
             return received;
         }
@@ -304,8 +324,9 @@ namespace PervasiveDigital.Hardware.ESP8266
         {
             // you cannot discard input if a stream read is in progress
             if (!_noStreamRead.WaitOne(10000, false))
-            {  //TODO DAV - Review. Had to add timeout as we are getting deadlocked here
-                Debug.WriteLine("noStreamRead never released");
+            {
+                //TODO DAV - Review. Had to add timeout as we are getting deadlocked here
+                Dbg.WriteLine("noStreamRead never released");
                 _noStreamRead.Set();
             }
             Monitor.Enter(_readLoopMonitor);
@@ -316,12 +337,16 @@ namespace PervasiveDigital.Hardware.ESP8266
                     _responseQueue.Clear();
                     _responseReceived.Reset();
                     _buffer.Clear();
+#if MF_FRAMEWORK_VERSION_V4_3
+                    _port.DiscardInBuffer();
+#else
                     _port.ClearReadBuffer();
-                    //_port.DiscardInBuffer();
+#endif
+
                     _stream.Clear();
                 }
                 if (_enableVerboseOutput)
-                    Debug.WriteLine("BUFFER CLEARED");
+                    Dbg.WriteLine("BUFFER CLEARED");
             }
             finally
             {
@@ -355,22 +380,36 @@ namespace PervasiveDigital.Hardware.ESP8266
             this.Write(txt + "\r\n");
         }
 
-        
-            private void PortOnDataReceived(SerialPort sender, DataReceivedEventArgs e)
-        //private void PortOnDataReceived(object sender, SerialDataReceivedEventArgs serialDataReceivedEventArgs)
+#if MF_FRAMEWORK_VERSION_V4_3
+        private void PortOnDataReceived(object sender, SerialDataReceivedEventArgs serialDataReceivedEventArgs)
         {
-            //if (e.EventType == SerialData.Chars)
-            //{
+            if (serialDataReceivedEventArgs.EventType == SerialData.Chars)
+            {
+#else
+        private void PortOnDataReceived(SerialPort sender, DataReceivedEventArgs e)
+        {
+#endif
+
                 // Keep doing this while there are bytes to read - don't rely on just event notification
                 // The ESP8266 is very timing sensitive and subject to buffer overrun - keep the loop tight.
-                var newInput = ReadExistingBinary();
-                if (newInput != null && newInput.Length > 0)
-                {
-                    _buffer.Put(newInput);
-                }
-
-                ProcessBufferedInput();
-            //}
+//                int lc = 0;
+                  for (;;)
+                    {
+                        var newInput = ReadExistingBinary();
+                        if (newInput != null && newInput.Length > 0)
+                        {
+                            _buffer.Put(newInput);
+                        }
+                        else break;
+//                        ++lc;
+                    }
+//                Debug.Print("LC= " + lc + " _buffer = " + _buffer.Size + " / " + _buffer.Capacity);
+            
+            ProcessBufferedInput();
+             //   }
+#if MF_FRAMEWORK_VERSION_V4_3
+            }
+#endif
         }
 
         private void ProcessBufferedInput()
@@ -394,9 +433,9 @@ namespace PervasiveDigital.Hardware.ESP8266
                             _cbStream -= eat;
                             if (_enableDebugOutput)
                             {
-                                Debug.WriteLine("STREAM: Copied " + eat + " characters to stream. Buffer contains:" +
-                                            _buffer.Size + " Stream contains : " + _stream.Size + " Still need:" +
-                                            _cbStream);
+                                Dbg.WriteLine("STREAM: Copied " + eat + " characters to stream. Buffer contains:" +
+                                              _buffer.Size + " Stream contains : " + _stream.Size + " Still need:" +
+                                              _cbStream);
                             }
                         }
                         // If we have fulfilled the stream request, then dispatch the received data to the datareceived handler
@@ -411,7 +450,7 @@ namespace PervasiveDigital.Hardware.ESP8266
                                     //Debug.WriteLine("noStreamRead Unblock 1");
                                     _noStreamRead.Set();
                                     // Run this in the background so as not to slow down the read loop
-                                    ThreadPool.QueueUserWorkItem(DataReceivedThunk ,new object[] { data, channel });
+                                    ThreadPool.QueueUserWorkItem(DataReceivedThunk, new object[] {data, channel});
                                     //new Thread(() => { DataReceived(this, data, channel); }).Start();
                                 }
                                 catch (Exception)
@@ -433,7 +472,7 @@ namespace PervasiveDigital.Hardware.ESP8266
                         while ((idxNewline != -1 || idxIPD != -1) && _cbStream == 0)
                         {
                             string line = "";
-                            if ((idxIPD == -1 && idxNewline!=-1) || (idxNewline != -1 && idxNewline < idxIPD))
+                            if ((idxIPD == -1 && idxNewline != -1) || (idxNewline != -1 && idxNewline < idxIPD))
                             {
                                 if (idxNewline == 0)
                                     line = "";
@@ -443,6 +482,7 @@ namespace PervasiveDigital.Hardware.ESP8266
                                 _buffer.Skip(1);
                                 if (!StringUtilities.IsNullOrEmpty(line))
                                 {
+
                                     if (_enableDebugOutput)
                                         Log("Received : " + line);
 
@@ -467,8 +507,8 @@ namespace PervasiveDigital.Hardware.ESP8266
                                         line.StartsWith("csum "))
                                         return;
 
-                                        // Handle async notifications and command responses
-                                        var idxClosed = line.IndexOf(",CLOSED");
+                                    // Handle async notifications and command responses
+                                    var idxClosed = line.IndexOf(",CLOSED");
                                     if (idxClosed != -1)
                                     {
                                         // Handle socket-closed notification
@@ -494,7 +534,7 @@ namespace PervasiveDigital.Hardware.ESP8266
                                     }
                                 }
                             }
-                            else if (idxIPD!=-1) // idxIPD found before newline
+                            else if (idxIPD != -1) // idxIPD found before newline
                             {
                                 // find the colon which ends the data-stream introducer
                                 var idxColon = _buffer.IndexOf(0x3A);
@@ -528,7 +568,7 @@ namespace PervasiveDigital.Hardware.ESP8266
                 catch (Exception exc)
                 {
                     // Ignore exceptions - this loop needs to keep running
-                    Debug.WriteLine("Exception in Esp8266.ReadLoop() : " + exc);
+                    Dbg.WriteLine("Exception in Esp8266.ReadLoop() : " + exc);
                 }
                 finally
                 {
@@ -539,12 +579,12 @@ namespace PervasiveDigital.Hardware.ESP8266
 
         private void DataReceivedThunk(object state)
         {
-            var args = (object[])state;
+            var args = (object[]) state;
             if (DataReceived != null)
             {
                 try
                 {
-                    DataReceived(this, (byte[])args[0], (int)args[1]);
+                    DataReceived(this, (byte[]) args[0], (int) args[1]);
                 }
                 catch
                 {
@@ -563,7 +603,7 @@ namespace PervasiveDigital.Hardware.ESP8266
 
         private static void Log(string msg)
         {
-            Debug.WriteLine(msg);
+            Dbg.WriteLine(msg);
         }
 
         private static void Dump(string tag, byte[] data)
@@ -573,9 +613,9 @@ namespace PervasiveDigital.Hardware.ESP8266
             sbLeft.Append(tag);
 
             // round up the length to make for pretty output
-            var length = (data.Length + 15) / 16 * 16;
+            var length = (data.Length + 15)/16*16;
             var actualLen = data.Length;
-            for (int i = 0 ; i < length ; ++i)
+            for (int i = 0; i < length; ++i)
             {
                 if (i < actualLen)
                 {
@@ -591,12 +631,12 @@ namespace PervasiveDigital.Hardware.ESP8266
                     sbLeft.Append("   ");
                     sbRight.Append(' ');
                 }
-                if ((i + 1) % 8 == 0)
+                if ((i + 1)%8 == 0)
                     sbLeft.Append("  ");
-                if ((i + 1) % 16 == 0)
+                if ((i + 1)%16 == 0)
                 {
                     sbLeft.Append(sbRight);
-                    Debug.WriteLine(sbLeft.ToString());
+                    Dbg.WriteLine(sbLeft.ToString());
                     sbLeft.Clear();
                     sbRight.Clear();
                     for (var j = 0; j < tag.Length; ++j)
@@ -606,8 +646,29 @@ namespace PervasiveDigital.Hardware.ESP8266
             if (sbRight.Length > 0)
             {
                 sbLeft.Append(sbRight + "  ");
-                Debug.WriteLine(sbLeft.ToString());
+                Dbg.WriteLine(sbLeft.ToString());
             }
+        }
+    }
+
+}
+namespace PervasiveDigital.Utilities
+{
+    
+public static class Dbg
+    {
+        public static void WriteLine(string message)
+        {
+#if MF_FRAMEWORK_VERSION_V4_3
+            Microsoft.SPOT.Debug.Print(message);
+#else
+            System.Diagnostics.Debug.WriteLine(message);
+#endif
+        }
+
+        public static void Print(string message)
+        {
+            WriteLine(message);
         }
     }
 }

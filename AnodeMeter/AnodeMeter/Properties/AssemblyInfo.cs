@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 // associated with an assembly.
 [assembly: AssemblyTitle("AnodeMeter")]
 [assembly: AssemblyDescription("Aluminium Smelter Potroom Current Meter")]
-[assembly: AssemblyConfiguration("")]
+[assembly: AssemblyConfiguration("TinyCLR SCM20260")]
 [assembly: AssemblyCompany("C-Born Software Systems")]
 [assembly: AssemblyProduct("AnodeMeter")]
 [assembly: AssemblyCopyright("Copyright © 2015-2024")]
