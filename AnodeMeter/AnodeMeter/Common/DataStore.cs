@@ -93,12 +93,14 @@ namespace AnodeMeter.Common
             }
         }
 
-        private bool IsLocked = false;  // Set to true when we go to DiskDriveMode as then our code can't touch the uSD card
+        private bool _IsLocked = false;  // Set to true when we go to DiskDriveMode as then our code can't touch the uSD card
 
         public void Lock(bool State)
         {
-            IsLocked = State;
+            _IsLocked = State;
         }
+
+        public bool IsLocked() { return _IsLocked;}
 
         public bool bSchedFileTouched = true;
         // Called when file system may have been changed (say by going to DiskDriveMode)
@@ -257,7 +259,7 @@ namespace AnodeMeter.Common
 #endif
         private void AppendFile(string fName, string sLine, bool append = true)
         {
-            if (IsLocked) return;
+            if (_IsLocked) return;
             if (fName == "") return;
 
 #if false
@@ -365,7 +367,7 @@ namespace AnodeMeter.Common
 
         public string ReadFileAsString(string fname, bool FailQuietly = false)
         {
-            if (IsLocked) return "";
+            if (_IsLocked) return "";
             string res = "";
 
             try
@@ -423,7 +425,7 @@ namespace AnodeMeter.Common
 
         private byte[] ReadFile(string fName)
         {
-            if (IsLocked) return null;
+            if (_IsLocked) return null;
 
             byte[] buff = null;
             FStream fs = null;

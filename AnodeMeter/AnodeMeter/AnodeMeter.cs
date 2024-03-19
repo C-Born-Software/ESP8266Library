@@ -488,7 +488,8 @@ namespace AnodeMeter
             {
                 Minute = ((Globals.PowerState == Globals.PowerStates.BatteryTest) ? Globals.BatTimer : Globals.RefTimer) / 60;
 
-                ParseBattLog();
+                if(!_ds.IsLocked())
+                    ParseBattLog();
 
                 Debug.WriteLine("DateTimeMinute=" + DateTime.Now.Minute.ToString() + "  Minute=" + Minute.ToString());
                 /*
@@ -527,7 +528,8 @@ namespace AnodeMeter
                     if (++HouseKeepDivider >= GlobalConsts.HOUSE_KEEPING_CHECK_SECONDS)
                     {
                         HouseKeepDivider = 0;
-                        DoPeriodicHouseKeeping(o);
+                        if(!_ds.IsLocked())
+                            DoPeriodicHouseKeeping(o);
                     }
                 }
                 finally
@@ -655,6 +657,9 @@ namespace AnodeMeter
                                 break;
                             case "wifiverbose":
                                 if (HasP1) Globals.WifiVerbose = (p1b != 0);
+                                break;
+                            case "reboottoms":
+                                if (HasP1) Globals.RebootToMS = (p1b != 0);
                                 break;
                             case "wifimodes":
                                 Globals.WifiModes = p1b;

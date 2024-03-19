@@ -1,6 +1,18 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.2.0.7_20240308-2.tca
+==========================
+Unfortunately 2.2.0.7000 didn't fix the MassStorage switch problem.
+I've added a config setting (FactoryDefaults.csv, setable from the meter setup menu), to enable or disable forcing a reboot when switching modes.
+If your PCs will switch without needing the reboot, keep it in the "no" position!
+
+App_2.2.0.7_20240308-1.tca
+==========================
+Upgrade to GHI's latest 2.2.0.7000 firmware, which hopefully has fixed switch to mass storage (DiskDriveMode) and RTC wake from sleep.
+Includes updates from G120 version to work with downloading large schedule files over WiFi, and diagnostics force schedule download on long-Down press,
+and KeepOldFiles
+
 App_2.2.0.6_20240114-1.tca
 ==========================
 GHI's USB MassStorage switch fix doesn't work for all PCs. In testing on 7 PCs here, it worked on 3 of the 7.

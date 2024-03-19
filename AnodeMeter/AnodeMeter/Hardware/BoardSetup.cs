@@ -102,7 +102,7 @@ namespace AnodeMeter.Hardware
         public enum MenuTypes { Settings = 0, Info, Mode, Support, Wifi, Exit, Last = Exit, First = Settings };
         public enum MenuItems
         {
-            setTopLevel = 0, setBackLight, setGreenLED, setRedLED, setLCDBias, setClock, setMeasMode, setLogRawData, setWiFi, setWifiDebug, setWifiVerbose, setSave, setLoad, setAutoScan = 100,
+            setTopLevel = 0, setBackLight, setGreenLED, setRedLED, setLCDBias, setClock, setMeasMode, setLogRawData, setWiFi, setWifiDebug, setWifiVerbose, setRebootToMS, setSave, setLoad, setAutoScan = 100,
             infoTopLevel = 0, infoBatt, infoInput, infoFirmware, infoBuiltOn, infoSDCard, infoSerial, infoUID,
             modeTopLevel = 0, modeDiskDrive = 2,
             supportTopLevel = 0, supportPowerOff,supportHibernate, supportBattTest, supportIFU, supportEraseID, supportWifiTest, supporSetSerial = 100,
@@ -472,6 +472,12 @@ namespace AnodeMeter.Hardware
                                         if (RightButton.click) Globals.WifiVerbose = true;
                                         break;
 
+                                    case MenuItems.setRebootToMS: // Need to Reboot into Mass Storage mode?
+                                        PrintScreen("RebootToMS? ", Globals.RebootToMS == true ? "Yes" : "No");
+                                        if (LeftButton.click) Globals.RebootToMS = false;
+                                        if (RightButton.click) Globals.RebootToMS = true;
+                                        break;
+
                                     case MenuItems.setSave: // Save factory defaults
                                         PrintScreen("Save Defaults?", SpecialLCDCharacter.Tick);
                                         if (CentreButton.click)
@@ -604,13 +610,15 @@ namespace AnodeMeter.Hardware
                                             PrintScreen("DiskDrive Mode", "Connect ?  " + SpecialLCDCharacter.Tick);
                                             if (CentreButton.click)
                                             {
-#if REBOOT_TO_MS
-                                                PrintScreen("Rebooting to", "DiskDrive Mode");
-                                                Thread.Sleep(1000);
-                                                RebootToMs();   // TODO Fix  - Shouldn't get past here. But hopefully can remove this when GHI fixes firmware!
-#else
-                                                PrintScreen("Switching to", "DiskDrive Mode");
-#endif
+                                                if (Globals.RebootToMS) {
+                                                    PrintScreen("Rebooting to", "DiskDrive Mode");
+                                                    Thread.Sleep(1000);
+                                                    RebootToMs();   // TODO Fix  - Shouldn't get past here. But hopefully can remove this when GHI fixes firmware!
+                                                }
+                                                else
+                                                { 
+                                                    PrintScreen("Switching to", "DiskDrive Mode");
+                                                }
                                                 Thread.Sleep(1000);
 
                                                 DiskDriveMode(true);
@@ -621,6 +629,7 @@ namespace AnodeMeter.Hardware
 
                                         case MenuItems.modeDiskDrive:
                                             int wtime = 15;
+                                            DateTime _dtSettlingTime = DateTime.Now.AddSeconds(15);
                                             DiskDriveMode(true);
                                             while (ms.DeviceState != DeviceState.Configured) // UsbController.PortState.Running)
                                             {
@@ -638,11 +647,12 @@ namespace AnodeMeter.Hardware
                                             {
                                                 if(ms.DeviceState != ds)
                                                 {
-                                                    Debug.WriteLine("DeviceState changed from " + ds + " to " + ms.DeviceState);
+                                                    Debug.WriteLine("DeviceState changed from " + GetEnumName(ds) + " to " + GetEnumName(ms.DeviceState));
                                                     ds = ms.DeviceState;
                                                 }
                                                 // With 64GB uSD state seems to switch between Default and Configured when in use, and goes to Suspended when ejected
-                                                if (ms.DeviceState != DeviceState.Configured && ms.DeviceState != DeviceState.Default)
+                                                // if (ms.DeviceState != DeviceState.Configured && ms.DeviceState != DeviceState.Default)
+                                                if ((ms.DeviceState == DeviceState.Suspended) && (DateTime.Now >= _dtSettlingTime))
                                                     break;
 
                                                 //if (CentreButton.click) break;
@@ -650,11 +660,12 @@ namespace AnodeMeter.Hardware
                                                     break;
                                                 Thread.Sleep(100);
                                             }
-                                            Debug.WriteLine("Resuming because state = " + ms.DeviceState);
+                                            Debug.WriteLine("Resuming because state = " + GetEnumName(ms.DeviceState));
                                             Thread.Sleep(1000);
-#if REBOOT_TO_MS
-                                            RebootToWinUSB();
-#endif
+
+                                            if(Globals.RebootToMS) 
+                                                RebootToWinUSB();
+
                                             DiskDriveMode(false);
                                             _ds.FileSystemChanged();    // Files may have been changed so re-check
                                             PrintScreen("Device Mode", "Resuming...");
@@ -1250,7 +1261,7 @@ namespace AnodeMeter.Hardware
             {
                 VendorId = 7071,
                 ProductId = 61442,
-                BcdUsb = 528,
+                BcdUsb = 512, //528,
                 BcdDevice = 256,
                 MaxPower = 250,
                 ManufactureName = "C-Born Software Systems",
@@ -1278,6 +1289,20 @@ namespace AnodeMeter.Hardware
             ms = null;
             Thread.Sleep(1000);
             Debug.WriteLine("MassStorage Stopped");
+        }
+        static string GetEnumName(DeviceState state)
+        {
+            switch (state)
+            {
+                case DeviceState.Detached: return "Detached";
+                case DeviceState.Attached: return "Attached";
+                case DeviceState.Powered: return "Powered";
+                case DeviceState.Default: return "Default";
+                case DeviceState.Address: return "Address";
+                case DeviceState.Configured: return "Configured";
+                case DeviceState.Suspended: return "Suspended";
+                default: return state.ToString(); // Fallback to default ToString() behavior
+            }
         }
         private static string WFStat(byte n)
         {
@@ -1452,6 +1477,7 @@ namespace AnodeMeter.Hardware
                 UpdateOrAdd(ref Records, "WifiDebug", (Globals.WifiDebug ? 1 : 0).ToString(), ref extras);
                 UpdateOrAdd(ref Records, "WifiVerbose", (Globals.WifiVerbose ? 1 : 0).ToString(), ref extras);
                 UpdateOrAdd(ref Records, "WifiModes", Globals.WifiModes.ToString(), ref extras);
+                UpdateOrAdd(ref Records, "RebootToMS", (Globals.RebootToMS ? 1 : 0).ToString(), ref extras);
 
                 if (Globals.SleepOverride)
                 {

@@ -53,6 +53,7 @@ namespace AnodeMeter
         public static int WifiSyncTime = 5 * 60;  // Intervals between wiFi sync attempts in timed mode (seconds)
         public static Hashtable WifiInfo = new Hashtable(); // Cache info about wifi
         public static bool[] WifiStatus = new bool[4];
+        public static bool RebootToMS = false;  // Set if we need to reboot to switch between MassStorage and WinUSB modes
 
         public static bool WifiTestMode = false; // Use when testing so normal operations don't step on us
 

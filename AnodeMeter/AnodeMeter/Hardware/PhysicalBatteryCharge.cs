@@ -67,8 +67,15 @@ namespace AnodeMeter.Hardware
 
             while (true)
             {
-                BattVolts = (float)(VBatt.ReadRatio() * VBatt_Scale);
-                vRef = (float)(VRef2p5.ReadRatio() * VRef2p5_Scale);
+                try
+                {
+                    BattVolts = (float)(VBatt.ReadRatio() * VBatt_Scale);
+                    vRef = (float)(VRef2p5.ReadRatio() * VRef2p5_Scale);
+                }
+                catch (Exception e)
+                {
+                    // Ignore
+                }
 
                 if ((vRef > 2) && (vRef < 3))
                 {
