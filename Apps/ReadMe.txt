@@ -1,6 +1,12 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.2.1.2_20240320.tca
+==========================
+GHI have done some more firmware updates, DiskDriveMode should work on a wider range of hardware now.
+RebootToMs settings wasn't saved correctly to config file,fixed.
+Various other minor fixes
+
 App_2.2.0.7_20240308-2.tca
 ==========================
 Unfortunately 2.2.0.7000 didn't fix the MassStorage switch problem.

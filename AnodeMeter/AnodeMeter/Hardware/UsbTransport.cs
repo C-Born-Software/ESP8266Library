@@ -69,6 +69,12 @@ namespace AnodeMeter.Hardware
             winUsb = null;
 
             Thread.Sleep(200);
+            if (UsbController != null)
+            {
+                try { UsbController.Dispose(); }
+                catch { }
+                UsbController = null;
+            }
             Debug.WriteLine("WinUsb Stopped");
         }
         public override bool WriteWithTimeout(byte[] Data, int Timeout_ms)

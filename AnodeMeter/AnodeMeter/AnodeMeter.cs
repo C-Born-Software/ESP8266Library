@@ -528,8 +528,7 @@ namespace AnodeMeter
                     if (++HouseKeepDivider >= GlobalConsts.HOUSE_KEEPING_CHECK_SECONDS)
                     {
                         HouseKeepDivider = 0;
-                        if(!_ds.IsLocked())
-                            DoPeriodicHouseKeeping(o);
+                        DoPeriodicHouseKeeping(o);
                     }
                 }
                 finally
@@ -718,7 +717,7 @@ namespace AnodeMeter
         {
             bool bConnectionStateChanged = false;
 
-            if (Globals.DiskDriveMode)
+            if (Globals.DiskDriveMode || _ds.IsLocked())
             {
                 //Debug.Print("HouseKeeping Deferred"); //TODO DEBUG Delete DAV
                 return;

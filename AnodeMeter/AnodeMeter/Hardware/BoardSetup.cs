@@ -1188,7 +1188,7 @@ namespace AnodeMeter.Hardware
         }
 #endif
         // =================End Wifi Test =====================
-
+        static UsbClientController usbclientController;
         static MassStorage ms  = null;
         static StorageController sd = null;
         static bool LastReqState = false;   // Consider making the DiskDriveMode method static and adding this to it...
@@ -1256,7 +1256,7 @@ namespace AnodeMeter.Hardware
         {
             Debug.WriteLine("StartMs " + ((ms is null) ? "" : "(Skipped)"));
             if (ms != null) return;
-            var usbclientController = UsbClientController.GetDefault();
+            usbclientController = UsbClientController.GetDefault();
             ms = new MassStorage(usbclientController, new UsbClientSetting()
             {
                 VendorId = 7071,
@@ -1272,7 +1272,7 @@ namespace AnodeMeter.Hardware
             });
             //ms = new MassStorage(usbclientController);
             sd = StorageController.FromName(SC20260.StorageController.SdCard);
-            //ms.DeviceStateChanged += Ms_DeviceStateChanged;
+            ms.DeviceStateChanged += Ms_DeviceStateChanged;
             ms.AttachLogicalUnit(sd.Hdc);
             ms.Enable();
             Debug.WriteLine("MassStorage Started");
@@ -1284,11 +1284,21 @@ namespace AnodeMeter.Hardware
             if (ms is null) return;
             ms.Disable();
             ms.RemoveLogicalUnit(sd.Hdc);
-            //ms.DeviceStateChanged -= Ms_DeviceStateChanged;
+            ms.DeviceStateChanged -= Ms_DeviceStateChanged;
             ms.Dispose();
             ms = null;
             Thread.Sleep(1000);
+            if(usbclientController != null)
+            {
+                try { usbclientController.Dispose(); }
+                catch { }
+                usbclientController = null;
+            }
             Debug.WriteLine("MassStorage Stopped");
+        }
+        private static void Ms_DeviceStateChanged(RawDevice sender, DeviceState state)
+        {
+            Debug.WriteLine("MassStorage changed to " + GetEnumName(state));
         }
         static string GetEnumName(DeviceState state)
         {
