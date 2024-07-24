@@ -57,7 +57,7 @@ namespace AnodeMeter.Hardware
             if (!base.Init())
                 throw new Exception("Method \"BinaryTransport::Init\" not initialised");
 
-            if (!Globals.WifiDisable)
+            if (!Globals.WifiDisabled)
             {
                 _WifiThread = new Thread(WifiControl);
                 _WifiThread.Start();
@@ -90,7 +90,7 @@ namespace AnodeMeter.Hardware
             if (wifi == null)
             {
                 Debug.WriteLine("WiFi Device not operational");
-                Globals.WifiDisable = true; //So we don't keep trying...
+                Globals.WifiDisabled = true; //So we don't keep trying...
                 return;
             }
             Globals.WifiInfo["Meter MAC"] = wifi.StationMacAddress;
@@ -103,10 +103,10 @@ namespace AnodeMeter.Hardware
             if (Globals.WifiAPs == null || Globals.Gateways == null || Globals.WifiSyncTime == 0)
             {
                 Debug.WriteLine("WiFi not configured");
-                Globals.WifiDisable = true;
+                Globals.WifiDisabled = true;
             }
             // === If Wifi is disabled, we only run tests when requested
-            if (Globals.WifiDisable)
+            if (Globals.WifiDisabled)
             {
                 //Debug.Print("WiFiControl PowerOff()");
                 wifi.SetPower(false);
@@ -126,7 +126,8 @@ namespace AnodeMeter.Hardware
                         
                         while (Globals.WifiTestMode)
                         {
-                            UpdateApList();
+                            if(Globals.WifiScanMode)
+                                UpdateApList();
                             Thread.Sleep(1000);
                         }
                         wifi.SetPower(false);
@@ -187,7 +188,7 @@ namespace AnodeMeter.Hardware
 
                             try
                             {
-                                if (Globals.WifiTestMode || (apList == null))
+                                if (Globals.WifiScanMode || (apList == null))
                                     UpdateApList();
                                 wifi.Connect(WifiSSID, WifiPWD);
                                 WifiState = WifiStates.ConnectServer;
@@ -239,7 +240,7 @@ namespace AnodeMeter.Hardware
 
                             try
                             {
-                                if (Globals.WifiTestMode)
+                                if (Globals.WifiScanMode)
                                     UpdateApList();
                                 if (!wifi.IsAlive())
                                 {   // TODO - DAV - testing
@@ -310,7 +311,8 @@ namespace AnodeMeter.Hardware
                     {
                         if (Globals.WifiTestMode)
                         {
-                            UpdateApList();
+                            if (Globals.WifiScanMode)
+                                UpdateApList();
                             wakeEvent.WaitOne(1000 * 1, false);
                         }
                         else

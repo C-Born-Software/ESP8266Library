@@ -86,7 +86,7 @@ namespace AnodeMeter.Hardware
                 {
                     Debug.WriteLine("ESP8266 Device Booted");
                     booted = true;
-                    if (Globals.WifiDisable && !Globals.WifiTestMode)
+                    if (Globals.WifiDisabled && !Globals.WifiTestMode)
                     {
                         //Debug.Print("SetPower(false)");
                         _wifi.SetPower(false);

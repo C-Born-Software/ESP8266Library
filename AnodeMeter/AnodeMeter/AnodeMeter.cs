@@ -649,7 +649,7 @@ namespace AnodeMeter
                                 if (HasP1) Globals.USBDisable = (p1b != 0);
                                 break;
                             case "wifidisable":
-                                if (HasP1) Globals.WifiDisable = (p1b != 0);
+                                if (HasP1) Globals.WifiDisable = Globals.WifiDisabled = (p1b != 0);
                                 break;
                             case "wifidebug":
                                 if (HasP1) Globals.WifiDebug = (p1b != 0);
@@ -660,12 +660,15 @@ namespace AnodeMeter
                             case "reboottoms":
                                 if (HasP1) Globals.RebootToMS = (p1b != 0);
                                 break;
+                            case "keepschedule":
+                                if (HasP1) Globals.KeepSchedule = (p1b != 0);
+                                break;
                             case "wifimodes":
                                 Globals.WifiModes = p1b;
                                 break;
                             case "wifisynctime":
                                 Globals.WifiSyncTime = Convert.ToInt16(RecordParts[1].ToString());
-                                if (Globals.WifiSyncTime == 0) Globals.WifiDisable = true;
+                                if (Globals.WifiSyncTime == 0) Globals.WifiDisabled = true;
                                 break;
                             case "staticip":
                                 int quoteIndex = Record[i].IndexOf('\"');
@@ -1676,7 +1679,7 @@ namespace AnodeMeter
                                     {
                                         // If we're at the start of an Ad-Hoc Pot, use a momentary "down arrow" press
                                         // to drive directly to into pot-selection 
-                                        if (_CurrentAnode._FirstAnodeForPot && CurrentChoice == "AH")
+                                        if (_CurrentAnode != null && _CurrentAnode._FirstAnodeForPot && CurrentChoice == "AH")
                                         {
                                             int PotNameLength = _CurrentAnode._potName.Length;
                                             AnodeMeterSchedules.RemoveSchedule("AH");
@@ -2538,7 +2541,11 @@ namespace AnodeMeter
                     bool bRewoundToLastPot = false;
 
                     if (_CurrentAnode._FirstAnodeForPot)
-                        _PotAnodeResults = new PotMeasurementRecord(DateTime.Now, _CurrentAnode._potName, MeterNumber.ToString(), _plant.GetPotDetails(_CurrentAnode._potName)._anodeCount);
+                    {
+                        //TODO DAV Fixing exceptions. Default to 32 or 0?
+                        int ac = _plant.GetPotDetails(_CurrentAnode._potName) == null ? 0 : _plant.GetPotDetails(_CurrentAnode._potName)._anodeCount;
+                        _PotAnodeResults = new PotMeasurementRecord(DateTime.Now, _CurrentAnode._potName, MeterNumber.ToString(), ac);
+                    }
                     else
                     {
                         _previousAdHocSchedule = null;

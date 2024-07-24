@@ -102,11 +102,11 @@ namespace AnodeMeter.Hardware
         public enum MenuTypes { Settings = 0, Info, Mode, Support, Wifi, Exit, Last = Exit, First = Settings };
         public enum MenuItems
         {
-            setTopLevel = 0, setBackLight, setGreenLED, setRedLED, setLCDBias, setClock, setMeasMode, setLogRawData, setWiFi, setWifiDebug, setWifiVerbose, setRebootToMS, setSave, setLoad, setAutoScan = 100,
+            setTopLevel = 0, setBackLight, setGreenLED, setRedLED, setLCDBias, setClock, setMeasMode, setLogRawData, setWiFi, setWifiDebug, setWifiVerbose, setRebootToMS, setKeepSchedule, setSave, setLoad, setAutoScan = 100,
             infoTopLevel = 0, infoBatt, infoInput, infoFirmware, infoBuiltOn, infoSDCard, infoSerial, infoUID,
             modeTopLevel = 0, modeDiskDrive = 2,
             supportTopLevel = 0, supportPowerOff,supportHibernate, supportBattTest, supportIFU, supportEraseID, supportWifiTest, supporSetSerial = 100,
-            wifiTopLevel = 0, wifiStatus, wifiInfo, wifiScan, wifiTop,
+            wifiTopLevel = 0, wifiStatus, wifiInfo, wifiScan, wifiTop, wifiTest,
             exitTopLevel = 0
         };
 
@@ -458,6 +458,7 @@ namespace AnodeMeter.Hardware
                                         PrintScreen("Enable WiFi? ", Globals.WifiDisable == true ? "No" : "Yes");
                                         if (LeftButton.click) Globals.WifiDisable = true;
                                         if (RightButton.click) Globals.WifiDisable = false;
+                                        Globals.WifiDisabled = Globals.WifiDisable;
                                         break;
 
                                     case MenuItems.setWifiDebug: // Will we enable Wifi (will require a reboot to take effect)
@@ -476,6 +477,12 @@ namespace AnodeMeter.Hardware
                                         PrintScreen("RebootToMS? ", Globals.RebootToMS == true ? "Yes" : "No");
                                         if (LeftButton.click) Globals.RebootToMS = false;
                                         if (RightButton.click) Globals.RebootToMS = true;
+                                        break;
+
+                                    case MenuItems.setKeepSchedule: // Keep Schedule until overwritten?
+                                        PrintScreen("Keep Old Schedule? ", Globals.KeepSchedule == true ? "Yes" : "No");
+                                        if (LeftButton.click) Globals.KeepSchedule = false;
+                                        if (RightButton.click) Globals.KeepSchedule = true;
                                         break;
 
                                     case MenuItems.setSave: // Save factory defaults
@@ -1056,6 +1063,7 @@ namespace AnodeMeter.Hardware
                                         if (CentreButton.click)
                                         {
                                             PrintScreen("AP Scan", "Starting WiFi");
+                                            Globals.WifiTestMode = Globals.WifiScanMode = true;
                                             WaitApList(10);
 
                                             for (; ; )
@@ -1082,6 +1090,7 @@ namespace AnodeMeter.Hardware
                                         if (CentreButton.click)
                                         {
                                             PrintScreen("Strongest AP", "Starting WiFi");
+                                            Globals.WifiTestMode = Globals.WifiScanMode = true;
                                             WaitApList(10);
 
                                             for (; ; )
@@ -1102,6 +1111,34 @@ namespace AnodeMeter.Hardware
                                         }
                                         break;
 
+                                    case MenuItems.wifiTest:        // Keep WiFi running so they can ping-test it
+                                        PrintScreen("WiFi Test", SpecialLCDCharacter.Tick);
+                                        if (CentreButton.click)
+                                        {
+                                            PrintScreen("WiFi Test", "Running WiFi");
+                                            Globals.WifiTestMode = true;
+                                            WaitApList(10);
+                                            var apList = _gw_wifi.apList;
+
+                                            for (; ; )
+                                            {
+                                                if (apList != null)
+                                                {
+                                                    foreach (var ap in apList)
+                                                    {
+                                                        PrintWideScreen(ap.Ssid,
+                                                            "Signal:" + (130 + ap.Rssi).ToString());
+                                                        break;
+                                                    }
+                                                    break;
+                                                    if (HoldOrBreak(20)) break;
+                                                }
+                                                else break;
+                                            }
+                                            for(; ; )
+                                                if (HoldOrBreak(20)) break;
+                                        }
+                                        break;
                                     default:
                                         MenuItem = 0;
                                         MenuStep = 0;
@@ -1148,7 +1185,6 @@ namespace AnodeMeter.Hardware
         private static bool WaitApList(int secs)
         {
             //var apList = _gw_wifi.apList;
-            Globals.WifiTestMode = true;
             if (_gw_wifi != null)
                 _gw_wifi.SetWifi(BinaryTransport.WifiStates.Connected);
             //PrintScreen("AP Scan", "Starting WiFi");
@@ -1404,7 +1440,7 @@ namespace AnodeMeter.Hardware
             Thread.Sleep(100);
             _lcd.SetScreen(0);
             InSetupMode = false;
-            Globals.WifiTestMode = false;
+            Globals.WifiTestMode = Globals.WifiScanMode = false;
         }
 
         private void CheckRTC()
@@ -1488,6 +1524,7 @@ namespace AnodeMeter.Hardware
                 UpdateOrAdd(ref Records, "WifiVerbose", (Globals.WifiVerbose ? 1 : 0).ToString(), ref extras);
                 UpdateOrAdd(ref Records, "WifiModes", Globals.WifiModes.ToString(), ref extras);
                 UpdateOrAdd(ref Records, "RebootToMS", (Globals.RebootToMS ? 1 : 0).ToString(), ref extras);
+                UpdateOrAdd(ref Records, "KeepSchedule", (Globals.KeepSchedule ? 1 : 0).ToString(), ref extras);
 
                 if (Globals.SleepOverride)
                 {

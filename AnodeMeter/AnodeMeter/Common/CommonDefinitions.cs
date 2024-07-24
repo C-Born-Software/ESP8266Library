@@ -46,7 +46,8 @@ namespace AnodeMeter
         public static string StaticIP = "";
         public static IPAddress IpAddress = null;
         public static bool USBDisable = false;
-        public static bool WifiDisable = false;
+        public static bool WifiDisable = false;     // Setting from FactoryDefaults
+        public static bool WifiDisabled = false;    // Local state - may be set if no WiFi or Gateway set
         public static bool WifiDebug = false;
         public static bool WifiVerbose = false;
         public static byte WifiModes = 3;       // Flags, b0 = timed, b1 = end of pot, b2 = on charge
@@ -54,8 +55,10 @@ namespace AnodeMeter
         public static Hashtable WifiInfo = new Hashtable(); // Cache info about wifi
         public static bool[] WifiStatus = new bool[4];
         public static bool RebootToMS = false;  // Set if we need to reboot to switch between MassStorage and WinUSB modes
+        public static bool KeepSchedule = false;    // Set if we want to retain the Schedule until overriden
 
         public static bool WifiTestMode = false; // Use when testing so normal operations don't step on us
+        public static bool WifiScanMode = false; // Use when scanning (in test mode) so normal operations don't step on us
 
         public static bool SleepOverride = false;   // Set if values have been overridden from SD card
         public static int ShutDownAfterMinutes = 59;    // Shutdown after hibernating for this time. (May change if using WiFi?)

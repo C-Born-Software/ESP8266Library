@@ -1,6 +1,14 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.2.2.1_20240607-1.tca
+==========================
+Recompiled for GHI 2.2.2.1000 firmware, no other changes to software
+
+App_2.2.1.2_20240320-2.tca
+==========================
+Clean up some null-reference exceptions (possibly caused by mismatched schedule files)
+
 App_2.2.1.2_20240320.tca
 ==========================
 GHI have done some more firmware updates, DiskDriveMode should work on a wider range of hardware now.
