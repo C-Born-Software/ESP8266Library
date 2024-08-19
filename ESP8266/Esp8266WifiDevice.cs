@@ -99,6 +99,7 @@ namespace PervasiveDigital.Hardware.ESP8266
            ListAccessPointsCommand,
            ListAccessPointsSortCommand,
            JoinAccessPointCommand,
+           GetJoinedRSSICommand,
            QuitAccessPointCommand,
            ListConnectedClientsCommand,
            SleepCommand,
@@ -1009,6 +1010,28 @@ namespace PervasiveDigital.Hardware.ESP8266
             return (AccessPoint[])result.ToArray(typeof(AccessPoint));
         }
 
+        public int GetRSSI()
+        {
+            int rssi = 0;
+            EnsureInitialized();
+            lock (_oplock)
+            {
+                var response = _esp.SendAndReadUntil(Command(Commands.GetJoinedRSSICommand), OK);
+
+                foreach (var line in response)
+                {
+                    var info = Unquote(line.Substring(line.IndexOf(':') + 1));
+                    //var tokens = info.Split(',');
+                    var tokens = info.SplitQuote(); // Line parser that handles quoted strings (Google puts commas inside SSIDs!)
+                    if (tokens.Length >= 4)
+                    {
+                        rssi = int.Parse(tokens[3]) + 130;
+                    }
+                }
+            }
+            return rssi;
+        }
+
         public AccessPointClient[] GetConnectedClients()
         {
             ArrayList result = new ArrayList();
@@ -1194,6 +1217,7 @@ namespace PervasiveDigital.Hardware.ESP8266
             _commandSet40[Commands.ListAccessPointsCommand] = "AT+CWLAP";
             _commandSet40[Commands.ListAccessPointsSortCommand] = "AT+CWLAPOPT=1,31";
             _commandSet40[Commands.JoinAccessPointCommand] = "AT+CWJAP=";
+            _commandSet40[Commands.GetJoinedRSSICommand] = "AT+CWJAP?";
             _commandSet40[Commands.QuitAccessPointCommand] = "AT+CWQAP";
             _commandSet40[Commands.ListConnectedClientsCommand] = "AT+CWLIF";
             _commandSet40[Commands.SleepCommand] = "AT+GSLP=";
