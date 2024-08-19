@@ -102,11 +102,11 @@ namespace AnodeMeter.Hardware
         public enum MenuTypes { Settings = 0, Info, Mode, Support, Wifi, Exit, Last = Exit, First = Settings };
         public enum MenuItems
         {
-            setTopLevel = 0, setBackLight, setGreenLED, setRedLED, setLCDBias, setClock, setMeasMode, setLogRawData, setWiFi, setWifiDebug, setWifiVerbose, setRebootToMS, setKeepSchedule, setSave, setLoad, setAutoScan = 100,
+            setTopLevel = 0, setBackLight, setGreenLED, setRedLED, setLCDBias, setClock, setMeasMode, setLogRawData, setWiFi, setWifiDebug, setWifiVerbose, setRebootToMS, /* setKeepSchedule, */ setSave, setLoad, setAutoScan = 100,
             infoTopLevel = 0, infoBatt, infoInput, infoFirmware, infoBuiltOn, infoSDCard, infoSerial, infoUID,
             modeTopLevel = 0, modeDiskDrive = 2,
             supportTopLevel = 0, supportPowerOff,supportHibernate, supportBattTest, supportIFU, supportEraseID, supportWifiTest, supporSetSerial = 100,
-            wifiTopLevel = 0, wifiStatus, wifiInfo, wifiScan, wifiTop, wifiTest,
+            wifiTopLevel = 0, wifiStatus, wifiInfo, wifiScan, wifiTop, wifiTest, wifiSpeedTest,
             exitTopLevel = 0
         };
 
@@ -118,6 +118,8 @@ namespace AnodeMeter.Hardware
         private double AvAin0 = 0.0;
 
         private static Globals.PowerStates LastPowerState = Globals.PowerStates.Normal;
+
+        private static int WaitSecs = 0;
 
         public void SetAnalogReading(double ain)
         {
@@ -478,13 +480,13 @@ namespace AnodeMeter.Hardware
                                         if (LeftButton.click) Globals.RebootToMS = false;
                                         if (RightButton.click) Globals.RebootToMS = true;
                                         break;
-
+#if false
                                     case MenuItems.setKeepSchedule: // Keep Schedule until overwritten?
                                         PrintScreen("Keep Old Schedule? ", Globals.KeepSchedule == true ? "Yes" : "No");
                                         if (LeftButton.click) Globals.KeepSchedule = false;
                                         if (RightButton.click) Globals.KeepSchedule = true;
                                         break;
-
+#endif
                                     case MenuItems.setSave: // Save factory defaults
                                         PrintScreen("Save Defaults?", SpecialLCDCharacter.Tick);
                                         if (CentreButton.click)
@@ -1117,7 +1119,16 @@ namespace AnodeMeter.Hardware
                                         {
                                             PrintScreen("WiFi Test", "Running WiFi");
                                             Globals.WifiTestMode = true;
-                                            WaitApList(10);
+                                            for (; ; )
+                                            {
+                                                _gw_wifi.UpdateRSSI();
+                                                PrintScreen("Running WiFi", $"RSSI : {Globals.CurrentRSSI}");
+                                                if (HoldOrBreak(20)) break;
+                                            }
+
+#if false
+}
+                                                WaitApList(10);
                                             var apList = _gw_wifi.apList;
 
                                             for (; ; )
@@ -1136,8 +1147,54 @@ namespace AnodeMeter.Hardware
                                                 else break;
                                             }
                                             for(; ; )
-                                                if (HoldOrBreak(20)) break;
+#endif                                                
                                         }
+                                        break;
+                                    case MenuItems.wifiSpeedTest:        // Keep WiFi running so they can ping-test it
+                                        PrintScreen("WiFi Speed Test", SpecialLCDCharacter.Tick);
+                                        Globals.WifiTestMode = Globals.WifiScanMode = false;
+                                        switch (Globals.WifiSpeedTestMode)
+                                        {                                      
+                                            case Globals.SpeedTestModes.idle:
+                                                if (CentreButton.click)
+                                                {
+                                                    Globals.WifiSpeedTestMode = Globals.SpeedTestModes.requested;
+                                                    WaitSecs = Globals.RefTimer + 15;
+                                                }
+                                                break;    
+                                            case Globals.SpeedTestModes.requested:
+                                                if (_gw_wifi != null)
+                                                    _gw_wifi.SetWifi(BinaryTransport.WifiStates.Connected);
+                                                //PrintScreen("Speed Test", "Starting");
+                                                PrintScreen($"Waiting for", $"Server... {WaitSecs - Globals.RefTimer}");
+                                                if (Globals.RefTimer >= WaitSecs)
+                                                {
+                                                    Globals.WifiSpeedTestMode = Globals.SpeedTestModes.idle;
+                                                }
+                                                break;
+                                            case Globals.SpeedTestModes.running:
+                                                PrintScreen($"RSSI : {Globals.CurrentRSSI}", "Testing...");
+                                                break;
+                                                    
+                                            case Globals.SpeedTestModes.completed:
+                                                string res = Globals.BounceTestPassed ? "Pass" : "Fail";
+                                                //PrintScreen("RSSI: " + Globals.CurrentRSSI, "Speed: " + Globals.SpeedTestBPS + "bps");
+                                                PrintScreen($"RSSI : {Globals.CurrentRSSI}  {res}", $"Speed: {Globals.SpeedTestBPS} Bps");
+                                                if (CentreButton.click)
+                                                {
+                                                    if (_gw_wifi != null)
+                                                        _gw_wifi.SetWifi(BinaryTransport.WifiStates.Connected);
+                                                    Globals.WifiSpeedTestMode = Globals.SpeedTestModes.requested;
+                                                    WaitSecs = Globals.RefTimer + 15;
+                                                }
+                                                if (UpButton.click || DownButton.click)
+                                                    Globals.WifiSpeedTestMode = Globals.SpeedTestModes.idle;
+                                                break;
+                                            default:
+                                                Globals.WifiSpeedTestMode = Globals.SpeedTestModes.idle;
+                                                break;
+
+                                        }                                      
                                         break;
                                     default:
                                         MenuItem = 0;
@@ -1524,7 +1581,7 @@ namespace AnodeMeter.Hardware
                 UpdateOrAdd(ref Records, "WifiVerbose", (Globals.WifiVerbose ? 1 : 0).ToString(), ref extras);
                 UpdateOrAdd(ref Records, "WifiModes", Globals.WifiModes.ToString(), ref extras);
                 UpdateOrAdd(ref Records, "RebootToMS", (Globals.RebootToMS ? 1 : 0).ToString(), ref extras);
-                UpdateOrAdd(ref Records, "KeepSchedule", (Globals.KeepSchedule ? 1 : 0).ToString(), ref extras);
+//                UpdateOrAdd(ref Records, "KeepSchedule", (Globals.KeepSchedule ? 1 : 0).ToString(), ref extras);
 
                 if (Globals.SleepOverride)
                 {

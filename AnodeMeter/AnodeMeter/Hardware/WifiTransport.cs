@@ -16,7 +16,7 @@ namespace AnodeMeter.Hardware
     {
         // TODO  DAV - I really don't like the huge payload header used in usb, could  be so much better
         // 20NOV2020  However I'll go along with it in WiFi for now, and may change to something better later
-        private const int minRawPacketSize = 200;   // If packets larger than this we add a packet header
+        //private const int minRawPacketSize = 200;   // If packets larger than this we add a packet header
         private const int HeaderSize = 23;          // TODO - DAV Copied from UsbTransport. Maybe we should use a smaller one??
         static bool _bWritePending;                 // TODO - from USB - will we need this?
         static Esp8266WifiDevice wifi;
@@ -35,7 +35,7 @@ namespace AnodeMeter.Hardware
             {
                 if (rs == WifiStates.Connected)
                 {
-                    WifiState = WifiStates.Restart;
+                    SetWifiState(WifiStates.Restart);
                     RequestedState = rs;
                 }
                 else if (rs == WifiStates.Off)
@@ -52,6 +52,13 @@ namespace AnodeMeter.Hardware
             return TransportType.Wifi;
         }
 
+        public WifiStates SetWifiState(WifiStates ws)
+        {
+            WifiStates oldWifiState = WifiState;
+            Debug.WriteLine("WifiState => " + GetWifiStateName(ws));
+            WifiState = ws;
+            return oldWifiState;
+        }
         public override bool Init()
         {
             if (!base.Init())
@@ -137,7 +144,7 @@ namespace AnodeMeter.Hardware
             }
 
             // === Normal Wifi operating mode
-            WifiState = WifiStates.ConnectAP;
+            SetWifiState(WifiStates.ConnectAP);
             for (; ; )
             {
                 if (RequestedState == WifiStates.Connected)
@@ -191,8 +198,8 @@ namespace AnodeMeter.Hardware
                                 if (Globals.WifiScanMode || (apList == null))
                                     UpdateApList();
                                 wifi.Connect(WifiSSID, WifiPWD);
-                                WifiState = WifiStates.ConnectServer;
-                                Debug.WriteLine("WifiState => ConnectServer");
+                                SetWifiState(WifiStates.ConnectServer);
+                                //Debug.WriteLine("WifiState => ConnectServer");
                                 if (Globals.Wifi_AP_Index != APNum)
                                 {
                                     Globals.Wifi_AP_Index = APNum;
@@ -200,6 +207,7 @@ namespace AnodeMeter.Hardware
                                 }
                                 Globals.WifiInfo["AP SSID"] = WifiSSID;
                                 Globals.WifiStatus[0] = true;   //TODO - DAV - Get a fail here even if connect,but no DHCP, so not that useful
+                                Globals.CurrentRSSI = wifi.GetRSSI();
                                 break;
                             }
                             catch (Exception e)
@@ -247,7 +255,7 @@ namespace AnodeMeter.Hardware
                                     //Debug.Print("WiFi Unresponsive - fall back");
                                     //WifiState = WifiStates.ConnectAP;
                                     Debug.WriteLine("WiFi Unresponsive - Restart");
-                                    WifiState = WifiStates.Restart;
+                                    SetWifiState(WifiStates.Restart);
                                     wifi.ResetPort();
                                     break;
                                 }
@@ -270,6 +278,7 @@ namespace AnodeMeter.Hardware
                                     throw new Exception("Bad Gateway");
                                 Globals.WifiStatus[2] = true;
                                 // Else gwvn[1] should be our gateway version, which we may be able to make use of?
+
                                 res = IssueRequest("GetServerLocalTime", null, null, null, 6000);
                                 if (res.IsNumbersOnly())
                                 {
@@ -278,7 +287,8 @@ namespace AnodeMeter.Hardware
                                 }
                                 // end test
                                 Globals.HaveWifi = true;
-                                WifiState = WifiStates.Connected;
+                                Debug.WriteLine("HaveWifi => true");
+                                SetWifiState(WifiStates.Connected);
                                 IssueEvent(ConnectionState.Connected);
                                 if (Globals.Wifi_Server_Index != ServerNum)
                                 {
@@ -286,7 +296,7 @@ namespace AnodeMeter.Hardware
                                     FlashWifi.SaveSettings();
                                 }
                                 Globals.WifiInfo["Server"] = Globals.Gateways[ServerNum];
-                                Debug.WriteLine("WifiState => Connected");
+                                //Debug.WriteLine("WifiState => Connected");
                                 TryCount = 0;
                             }
                             catch (Exception e)
@@ -299,7 +309,7 @@ namespace AnodeMeter.Hardware
 
                                 if (TryCount >= 3)
                                 {
-                                    WifiState = WifiStates.Restart;
+                                    SetWifiState(WifiStates.Restart);
                                     break;
                                 }
                                 else
@@ -321,6 +331,7 @@ namespace AnodeMeter.Hardware
                     if (WifiState == WifiStates.Restart)
                     {
                         Globals.HaveWifi = false;
+                        Debug.WriteLine("HaveWifi => false");
                         IssueEvent(ConnectionState.Detached);
                         if (sock != null)
                         {
@@ -330,8 +341,8 @@ namespace AnodeMeter.Hardware
                         //wifi.SetPower(false); //TODO - Could just reset?
                         wifi.Sleep(-1);
 
-                        WifiState = WifiStates.ConnectAP;
-                        Debug.WriteLine("WifiState => ConnectAP");
+                        SetWifiState(WifiStates.ConnectAP);
+                        //Debug.WriteLine("WifiState => ConnectAP");
                         Thread.Sleep(1000);
                     }
                 }
@@ -339,13 +350,14 @@ namespace AnodeMeter.Hardware
                 {
                     if (Globals.WifiTestMode == true) SetWifi(WifiStates.Connected);
                     if (RequestedState != WifiStates.Off)
-                        WifiState = WifiStates.Restart;
+                        SetWifiState(WifiStates.Restart);
                 }
                 if (RequestedState == WifiStates.Off)
                 {
                     if (WifiState != WifiStates.Off)
                     {
                         Globals.HaveWifi = false;
+                        Debug.WriteLine("HaveWifi => false (2)");
                         IssueEvent(ConnectionState.Detached);
                         if (sock != null)
                         {
@@ -355,8 +367,8 @@ namespace AnodeMeter.Hardware
                         Thread.Sleep(1000);     // Allow  ESP time to close socket
                         wifi.SetPower(false);   //TODO - Could just reset?
                         wifi.Sleep(-1);
-                        WifiState = WifiStates.Off;
-                        Debug.WriteLine("WifiState => Off");
+                        SetWifiState(WifiStates.Off);
+                        //Debug.WriteLine("WifiState => Off");
                         wifi.ResetPort();
                     }
                     wakeEvent.WaitOne(1000 * (Globals.WifiTestMode ? 1 : 60), false);
@@ -371,6 +383,20 @@ namespace AnodeMeter.Hardware
                 try
                 {
                     apList = wifi.GetAccessPoints(true);
+                }
+                catch (Exception e)
+                {
+                }
+            }
+        }
+
+        public void UpdateRSSI()
+        {
+           if (wifi != null)
+            {
+                try
+                {
+                    Globals.CurrentRSSI = wifi.GetRSSI();
                 }
                 catch (Exception e)
                 {
@@ -411,8 +437,8 @@ namespace AnodeMeter.Hardware
                 {
                     Debug.WriteLine("Send Fail: " + e.Message);
                     //TODO - handle failure - probably lost connection. Tear down and start again?
-                    WifiState = WifiStates.Restart;
-                    Debug.WriteLine("WifiState => Restart");
+                    SetWifiState(WifiStates.Restart);
+                    //Debug.WriteLine("WifiState => Restart");
                 }
                 _txOpCompleted = true;
                 _bWritePending = false;
@@ -422,8 +448,8 @@ namespace AnodeMeter.Hardware
             return bDone;
         }
 
-        private int bytesExpected;
-        private int bytesRead;
+       //private int bytesExpected;
+       //private int bytesRead;
 
         private void sock_DataReceived(object sender, SocketReceivedDataEventArgs args)
         {
@@ -446,7 +472,7 @@ namespace AnodeMeter.Hardware
                         Array.Copy(args.Data, 0, _rxBuff, bytesRead, rxlen);
                         bytesExpected -= rxlen;
                         bytesRead += rxlen;
-                        Debug.WriteLine("Received: Partial");
+                        Debug.WriteLine($"Received: Partial {rxlen} Total {bytesRead} Expected {bytesExpected}" );
                     }
                     else if (rxlen >= HeaderSize) // Could be a packet with header?
                     {
@@ -459,7 +485,7 @@ namespace AnodeMeter.Hardware
                             bytesExpected = (int)packetSize - bytesRead;
                             _rxBuff = new byte[packetSize];
                             Array.Copy(args.Data, HeaderSize, _rxBuff, 0, bytesRead);
-                            Debug.WriteLine("Received: Payload");
+                            Debug.WriteLine("Received: Payload " + packetSize);
                         }
                         else
                         {
@@ -481,7 +507,7 @@ namespace AnodeMeter.Hardware
                         _rxOpCompleted = true;
                     }
                 }
-                Debug.WriteLine("Received: " + StringUtilities.ConvertToString(args.Data));
+                //Debug.WriteLine("Received: " + StringUtilities.ConvertToString(args.Data));
             }
         }
 

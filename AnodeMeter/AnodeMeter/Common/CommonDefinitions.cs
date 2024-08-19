@@ -9,6 +9,7 @@ namespace AnodeMeter
     public enum MeasModeOption { RodDrop, ClampDrop, RodThenClamp, ClampThenRod };
     public enum MeasurementType { RodDrop, ClampDrop };
     public enum SpecialLCDCharacters : byte { batteryMt = 1, batteryQuart = 2, batteryHalf = 3, battery3Quart = 4, batteryFull = 5, Tick = 6, Down = 7 };
+
     public static class SpecialLCDCharacter
     {   // Fix this later, when get time. DAV
         public const string Tick = "\u0006";
@@ -55,10 +56,16 @@ namespace AnodeMeter
         public static Hashtable WifiInfo = new Hashtable(); // Cache info about wifi
         public static bool[] WifiStatus = new bool[4];
         public static bool RebootToMS = false;  // Set if we need to reboot to switch between MassStorage and WinUSB modes
-        public static bool KeepSchedule = false;    // Set if we want to retain the Schedule until overriden
+//        public static bool KeepSchedule = false;    // Set if we want to retain the Schedule until overriden
 
         public static bool WifiTestMode = false; // Use when testing so normal operations don't step on us
         public static bool WifiScanMode = false; // Use when scanning (in test mode) so normal operations don't step on us
+        public enum SpeedTestModes : byte { idle = 0, requested, running, completed };
+        public static SpeedTestModes WifiSpeedTestMode = SpeedTestModes.idle;
+        public static int WifiSpeedTestTime = 0; // Time in seconds to run speed test
+        public static int CurrentRSSI = 0; // Current signal strength   
+        public static int SpeedTestBPS=0; // Speed test result
+        public static bool BounceTestPassed = false; // true if returned string from bounce same as sent
 
         public static bool SleepOverride = false;   // Set if values have been overridden from SD card
         public static int ShutDownAfterMinutes = 59;    // Shutdown after hibernating for this time. (May change if using WiFi?)

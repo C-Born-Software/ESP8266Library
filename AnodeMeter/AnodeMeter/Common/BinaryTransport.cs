@@ -25,6 +25,36 @@ namespace AnodeMeter
             Init = 0, ConnectAP, ConnectServer, Connected, Restart, Sleep, Wake, Testing, Off, Query, NotImplemented
         };
 
+        public static string GetWifiStateName(WifiStates state)
+        {
+            switch (state)
+            {
+                case WifiStates.Init:
+                    return "Init";
+                case WifiStates.ConnectAP:
+                    return "ConnectAP";
+                case WifiStates.ConnectServer:
+                    return "ConnectServer";
+                case WifiStates.Connected:
+                    return "Connected";
+                case WifiStates.Restart:
+                    return "Restart";
+                case WifiStates.Sleep:
+                    return "Sleep";
+                case WifiStates.Wake:
+                    return "Wake";
+                case WifiStates.Testing:
+                    return "Testing";
+                case WifiStates.Off:
+                    return "Off";
+                case WifiStates.Query:
+                    return "Query";
+                case WifiStates.NotImplemented:
+                    return "NotImplemented";
+                default:
+                    return "Unknown";
+            }
+        }
         public delegate void ConnectionStateChanged(ConnectionState cs);
         public event ConnectionStateChanged ConnectionStateHandler;
         Timer _tmrManageConnection = null;
@@ -36,6 +66,9 @@ namespace AnodeMeter
         protected byte[] _txBuff = null;
         protected bool _rxOpCompleted;
         protected bool _txOpCompleted;
+
+        protected int bytesExpected = 0;
+        protected int bytesRead = 0;
 
         public BinaryTransport()
         {
@@ -85,6 +118,7 @@ namespace AnodeMeter
             byte[] data = null;
             _rxBuff = null;
             _rxOpCompleted = false;
+            bytesExpected = bytesRead = 0;
 
             if (WriteWithTimeout(Prompt, Timeout_ms) && WaitForOpToComplete(OpType.ReadOperation, Timeout_ms))
                 data = _rxBuff;

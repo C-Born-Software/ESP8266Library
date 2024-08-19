@@ -344,6 +344,8 @@ namespace PervasiveDigital.Hardware.ESP8266
 #endif
 
                     _stream.Clear();
+
+                    _cbStream = 0; // DAV Added 16AUG2024
                 }
                 if (_enableVerboseOutput)
                     Dbg.WriteLine("BUFFER CLEARED");

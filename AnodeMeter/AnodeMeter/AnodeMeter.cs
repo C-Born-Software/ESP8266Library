@@ -481,6 +481,8 @@ namespace AnodeMeter
             ++Globals.RunTimer;
             ++Globals.BatTimer;
 
+            //Debug.WriteLine("EverySecond: RefTimer=" + Globals.RefTimer.ToString());
+
             if (--Sec <= 0)
                 Sec = 60;
 
@@ -660,9 +662,11 @@ namespace AnodeMeter
                             case "reboottoms":
                                 if (HasP1) Globals.RebootToMS = (p1b != 0);
                                 break;
+#if false
                             case "keepschedule":
                                 if (HasP1) Globals.KeepSchedule = (p1b != 0);
                                 break;
+#endif
                             case "wifimodes":
                                 Globals.WifiModes = p1b;
                                 break;
@@ -764,7 +768,8 @@ namespace AnodeMeter
                         //                        Debug.Print("Rcv: " + res);
 
                         //TODO DAVTEST We may need to disable _noStreamRead before this?
-                        _gw_wifi.SetWifi(BinaryTransport.WifiStates.Off);
+                        if(Globals.WifiSpeedTestMode == Globals.SpeedTestModes.idle)   
+                            _gw_wifi.SetWifi(BinaryTransport.WifiStates.Off);
                     }
                 }
             }
@@ -881,6 +886,10 @@ namespace AnodeMeter
             {
                 // Prevent the HouseKeeping timer attempting to launch this code again if it's still running from the previous pass
                 _previousHouseKeepingPassFinished = false;
+
+                // run speed test on this thread
+                if (Globals.WifiSpeedTestMode == Globals.SpeedTestModes.requested)
+                    RunSpeedTest();
 
                 if (DateTime.Now >= dtCheckForDirtyData && DateTime.Now > _dtWaitaFewSeconds)
                 {
@@ -1074,6 +1083,60 @@ namespace AnodeMeter
             }
         }
 
+        private void RunSpeedTest()
+        {
+            // Do Speed Test
+            Globals.WifiSpeedTestMode = Globals.SpeedTestModes.running;
+
+            if(ActiveGW().GetTransportType() == BinaryTransport.TransportType.Wifi)
+                _gw_wifi.UpdateRSSI();
+
+            string data = BuildTestString(); // "This is the data for testing link speed";
+            Profile.DebugTime("Send Bounce Packet");
+            // Mark begin time here
+            DateTime startTime = DateTime.Now;
+
+            string res = ActiveGW().IssueRequest("BouncePacket", "SpeedTest", "TestData", data, 6000);
+            // Mark end time here
+            DateTime endTime = DateTime.Now;
+
+            Globals.BounceTestPassed = data.Equals(res);
+
+            Profile.DebugTime("Receive Bounced Packet");
+            Debug.WriteLine("Bounce => " + res);
+            double durationInSeconds = (endTime - startTime).TotalSeconds;
+            Globals.SpeedTestBPS = (int)((2 * data.Length) / durationInSeconds);  // Bytes/Second
+            // Calculate the data length in bits
+            //int TestLength = data.Length * 8; // 8 bits per character
+
+            // Calculate the speed in bits per second (bps)
+            //Globals.SpeedTestBPS = (int)(TestLength / durationInSeconds); // Fill data rate in bps here!
+            Globals.WifiSpeedTestMode = Globals.SpeedTestModes.completed;
+        }
+
+        private string BuildTestString()
+        {
+            int maxLines = 312; // About 25kB (80 bytes/line,  1250 lines => 100kB)
+            int numbersPerLine = 16;
+            int currentValue = 0;
+            StringBuilder sb = new StringBuilder();
+
+            for (int i = 0; i < maxLines; i++)
+            {
+                for (int j = 0; j < numbersPerLine; j++)
+                {
+                    sb.Append(currentValue.ToString("X4")); // Convert to 4-digit hex
+                    if (j < numbersPerLine - 1)
+                    {
+                        sb.Append(","); // Add comma between numbers
+                    }
+                    currentValue++;
+                }
+                sb.AppendLine(); // Add line feed at the end of each line
+            }
+
+            return sb.ToString();
+        }
 
         private bool MeteringAPot()
         {
@@ -1314,7 +1377,8 @@ namespace AnodeMeter
             {
                 if (cs == BinaryTransport.ConnectionState.Connected && _cs != BinaryTransport.ConnectionState.Connected)
                 {
-                    _lcd.ShowTimedMessage("Wifi Attached", 1);
+                    if(Globals.WifiDebug)
+                        _lcd.ShowTimedMessage("Wifi Attached", 1);
                     Debug.WriteLine("Wifi Connected");    //TODO REMOVE DEBUG DAV
                     dtCheckForDirtyData = DateTime.Now;
                     _cs = BinaryTransport.ConnectionState.Connected;
@@ -1325,7 +1389,8 @@ namespace AnodeMeter
                     RegisterActivity();
                     _cs = BinaryTransport.ConnectionState.Detached;
                     Debug.WriteLine("Wifi Disconnected");    //TODO REMOVE DEBUG DAV
-                    _lcd.ShowTimedMessage("Wifi Detached", 1);
+                    if(Globals.WifiDebug)
+                        _lcd.ShowTimedMessage("Wifi Detached", 1);
                 }
 
             }
