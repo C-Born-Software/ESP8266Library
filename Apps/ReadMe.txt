@@ -1,6 +1,20 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.3.0.1_20240817-2.tca
+==========================
+Multiple updates and fixes, including:
+1. Update app and ESP6266 Library to GHI Firmware 2.3.0.1
+   This includes several fixes, some which GHI says should improve meter disk-drive mode transition
+2. Fixes to ESP8266 Library packet handling
+   Should make for more reliable transfers over Wifi
+3. Added library function to return current connection RSSI
+   Used in Wifi Meter Test
+4. WiFi Attached/Detached messages on screen now only if WiFiDebug mode set, as per Julie's request
+5. WiFi Speed test function added (requires updated gateway service). Reports RSSI and bytes-per-second based on 25kB packet send/receive
+6. WiFi Test mode now displays current RSSI dynamically (see 3.)
+7. Fixes to allow large data transfers (>100kB) without overflowing on serial between SC20 and ESP8266 module
+
 App_2.2.2.1_20240607-1.tca
 ==========================
 Recompiled for GHI 2.2.2.1000 firmware, no other changes to software

@@ -20,6 +20,7 @@ using PervasiveDigital.Net;
 //using PervasiveDigital.Utilities;
 using PervasiveDigital.Hardware.ESP8266;
 using GHIElectronics.TinyCLR.Cryptography;
+using GHIElectronics.TinyCLR.Devices.Adc;
 
 namespace AnodeMeter
 {
@@ -103,7 +104,7 @@ namespace AnodeMeter.Hardware
         public enum MenuItems
         {
             setTopLevel = 0, setBackLight, setGreenLED, setRedLED, setLCDBias, setClock, setMeasMode, setLogRawData, setWiFi, setWifiDebug, setWifiVerbose, setRebootToMS, /* setKeepSchedule, */ setSave, setLoad, setAutoScan = 100,
-            infoTopLevel = 0, infoBatt, infoInput, infoFirmware, infoBuiltOn, infoSDCard, infoSerial, infoUID,
+            infoTopLevel = 0, infoBatt, infoInput, infoFirmware, infoBuiltOn, infoSDCard, infoSerial, infoUID, infoTemperature,
             modeTopLevel = 0, modeDiskDrive = 2,
             supportTopLevel = 0, supportPowerOff,supportHibernate, supportBattTest, supportIFU, supportEraseID, supportWifiTest, supporSetSerial = 100,
             wifiTopLevel = 0, wifiStatus, wifiInfo, wifiScan, wifiTop, wifiTest, wifiSpeedTest,
@@ -116,6 +117,7 @@ namespace AnodeMeter.Hardware
 
         private double Ain0 = 0.0;
         private double AvAin0 = 0.0;
+        private double AvIntTemp = -1.0;
 
         private static Globals.PowerStates LastPowerState = Globals.PowerStates.Normal;
 
@@ -586,6 +588,14 @@ namespace AnodeMeter.Hardware
                                             string SLo = uidString.Substring(12, 12);
                                             PrintScreen("ID: " + SHi, "    " + SLo);
                                         }
+                                        break;
+                                    case MenuItems.infoTemperature: // Display internal temperature
+                                        var IntTemp = GetTemperature();
+                                        if (AvIntTemp < 0)
+                                            AvIntTemp = IntTemp;
+                                        else
+                                            AvIntTemp = (0.9 * AvIntTemp) + (IntTemp / 10.0);
+                                        PrintScreen("Temp: " + AvIntTemp.ToString("F1") + "C", "");
                                         break;
 #if false
                             case MenuItems.infoMacAdd: // MAC Address
@@ -1238,6 +1248,39 @@ namespace AnodeMeter.Hardware
             };
         }
         /*====== End BoardSetupWorker() =======*/
+
+        /*====== Read device internal temperature =======*/
+
+        public static double GetTemperature()
+        {
+            var ts_reg1 = (IntPtr)0x1FF1E820;
+            var ts_reg2 = (IntPtr)0x1FF1E840;
+            var enable_reg = (IntPtr)((0x40000000U + 0x18020000 + 0x6300 + 8));
+
+            var controller = AdcController.FromName(SC20100.Adc.Controller3.Id);
+            var channel = controller.OpenChannel(SC20100.Adc.Controller3.InternalTemperatureSensor);
+            var enable_val = Marshal.ReadInt32(enable_reg);
+
+            enable_val |= (1 << 23);
+
+            Marshal.WriteInt32(enable_reg, enable_val);
+
+            var v = channel.ReadValue() * 1.0;
+
+
+            var ts1 = Marshal.ReadInt32(ts_reg1);
+            var ts2 = Marshal.ReadInt32(ts_reg2);
+
+            var t1 = (110 - 30) * 1.0;
+            var t2 = (ts2 - ts1) * 1.0;
+            var t3 = (v - ts1) * 1.0;
+
+            var temperature = t1 / t2 * t3 + 30;
+
+            Debug.WriteLine("T = " + temperature + " Celsius");
+
+            return temperature;
+        }
 
         private static bool WaitApList(int secs)
         {
