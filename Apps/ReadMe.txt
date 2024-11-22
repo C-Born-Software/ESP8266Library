@@ -1,6 +1,16 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.3.0.1_20241121.tca
+==========================
+Some of the meter DB error logs in field systems have been showing an "OutOfMemory" issue, which could possibly stem from a timing change and a small reentrancy window.
+This minor modification wraps an atomic mutex around the specific function call to protect it.
+Hopefully once rolled out we won't see any more of those issues, if not then we will keep looking. 
+
+App_2.3.0.1_20240905.tca
+==========================
+Added internal temperature to meter readings display in setup mode
+
 App_2.3.0.1_20240817-2.tca
 ==========================
 Multiple updates and fixes, including:

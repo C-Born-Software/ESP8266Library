@@ -12,8 +12,8 @@ namespace AnodeMeter.Hardware
         private Timer _tmrAiScan = null;
         //private int _successiveCountsInErrorRange;
         private DateTime _dtLastBatteryVoltageCheck;
-        private bool _bFinishedLastPass = true;
         private TimeSpan tsBattChkInterval = new TimeSpan(TimeSpan.TicksPerSecond * 30);
+        private int _isRunning = 0;
 
         public HardwareAI()
         {
@@ -27,9 +27,8 @@ namespace AnodeMeter.Hardware
             // AI sampling is driven by a timer which will call this routine again,
             // even if it hasn't finish the previous pass. This boolean is used to skip
             // subsequent processing if the previous pass hasn't yet completed.
-            if (_bFinishedLastPass)
+            if (Interlocked.CompareExchange(ref _isRunning, 1, 0) == 0)
             {
-                _bFinishedLastPass = false;
                 try
                 {
                     if (_ai == null)
@@ -48,25 +47,6 @@ namespace AnodeMeter.Hardware
 
                     double ThisValue = _ai.ReadVolts(HiResADC.InputChannel.Ch1);
 
-#if false           
-                    /* Errors suspected to have been caused by rentrant timer calls, and may no longer be a problem
-                     * Remove test code so can use absolute readings for clamp-drop measurement
-                     * If problems come back, add tests back in or find and fix problem
-                     * Note that there is still a small reentrancy window in this function call, fix with a mutex ASAP.
-                     * TODO: DAV: 21MAY14
-                     * ===== */
-                    // If input is in between 65..80mV or negative, then we probably have an instance of an infrequent
-                    // failure mode, so wait until certain and then close bounce the AI hardware
-                    if ((ThisValue > 0.065 && ThisValue < 0.08) || (ThisValue < -0.015))
-                    {
-                        if (++_successiveCountsInErrorRange > 20)
-                        {
-                            _ai.Close();
-                            _ai = null;
-                        }
-                    }
-                    else
-#endif
                     {
                         // Check if this reading is suspiciously low
                         if (ThisValue.Abs() < _lowValueThreshold)
@@ -91,7 +71,10 @@ namespace AnodeMeter.Hardware
                     }
                     Thread.Sleep(1000); // Don't want to flood system with error messages
                 }
-                _bFinishedLastPass = true;
+                finally
+                {
+                    Interlocked.Exchange(ref _isRunning, 0);
+                }
             }
         }
     }
