@@ -21,6 +21,7 @@ namespace AnodeMeter.Common
         protected DateTime _messageExpiry = DateTime.MinValue;
         readonly Queue TimedMessages = new Queue();
         private bool SettingsAvailable = false;
+        private bool LcdReady = false;
 
         // Class to hold timed messages so we can queue them
         private class MsgClass
@@ -54,6 +55,7 @@ namespace AnodeMeter.Common
             ClearDisplay();
         }
         public virtual void ReInit() {; }
+        public virtual void InitLcd(bool FirstRun = false) {; }
 
         public virtual void Suspend()
         {
@@ -182,6 +184,7 @@ namespace AnodeMeter.Common
             ShowTimedMessage("C-Born Software", "Built " + Globals.BuildDate.ToString("yyyy-MM-dd"), 3);
             MoveIntoDisplay("Loading Meter", new LcdDisplay.CursorPosition(0, 0));
             MoveIntoDisplay("Configuration", new LcdDisplay.CursorPosition(1, 0));
+            LcdReady = true;
 
             for (; ; )
             {
@@ -202,7 +205,11 @@ namespace AnodeMeter.Common
                     }
                     if (!HasMsg) _messageExpiry = DateTime.MinValue;
                 }
-
+                if(Globals.bReInitDisplay)
+                {
+                    InitLcd(false);
+                    Globals.bReInitDisplay = false;
+                }
                 try
                 {
                     UpdateDisplay();
@@ -297,6 +304,16 @@ namespace AnodeMeter.Common
             DisplayBuffer.Row[Position.Row].Characters[Position.Column] = (byte)SpecialCharacter;
         }
 
+        // Wait for LCD to be ready (for AnodeMeter mainline code)
+        public void WaitReady()
+        {
+            for(int WaitLoops = 0; WaitLoops < 20; WaitLoops++)
+            {
+                if (LcdReady)
+                    break;
+                Thread.Sleep(50);
+            }
+        }
         public void ClearDisplay()
         {
             for (int row = 0; row < DisplayBuffer.Row.Length; ++row)

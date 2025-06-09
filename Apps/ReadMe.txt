@@ -1,6 +1,18 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.3.0.1_20250123.tca
+==========================
+Finally got a meter back with the "garbage characters" fault, repeatable whenever it took a hard knock.
+Diagnosed hardware problem (connector), but also added code to reset display if this occurs, either by long-hold of "up" or "OK" buttons in normal mode, or when switching between normal/setup mode.
+Found a slight possibility mainline code may write to display before it is initialized on startup, depending on time taken to process config files.
+Don't know if this ever happened in real-life, but added code so mainline will wait (for up to 1 second) for display loop to signal it is ready for input.
+
+App_2.3.0.1_20250121.tca
+==========================
+There was a problem with the security key in the previous release that caused software update from SD card to fail.
+This version corrects that (uses the default code)
+
 App_2.3.0.1_20241121.tca
 ==========================
 Some of the meter DB error logs in field systems have been showing an "OutOfMemory" issue, which could possibly stem from a timing change and a small reentrancy window.

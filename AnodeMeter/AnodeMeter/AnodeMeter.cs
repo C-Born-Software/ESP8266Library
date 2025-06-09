@@ -724,6 +724,8 @@ namespace AnodeMeter
         {
             bool bConnectionStateChanged = false;
 
+            //Globals.bReInitDisplay = true;
+
             if (Globals.DiskDriveMode || _ds.IsLocked())
             {
                 //Debug.Print("HouseKeeping Deferred"); //TODO DEBUG Delete DAV
@@ -1293,6 +1295,7 @@ namespace AnodeMeter
             if (Globals.CfgState == Globals.ConfigState.ConfigOK)
                 AnodeMeterSchedules = new Schedule();
 
+            _lcd.WaitReady();
             _lcd.ClearDisplay();
             _lcd.MoveIntoDisplay("       ", new LcdDisplay.CursorPosition(0, 0));
 
@@ -1568,6 +1571,7 @@ namespace AnodeMeter
 
                                 case AnodeMeterButtonPress.centrehold:
                                     {
+                                        Globals.bReInitDisplay = true;  // Reinit LCD Display (just in case!)
                                         DisplayMeterInformation();
                                     }
                                     break;
@@ -1830,6 +1834,8 @@ namespace AnodeMeter
                                     switch (Navigation.CurrentMenu())
                                     {
                                         case 0: //lines
+
+                                            Globals.bReInitDisplay = true;  // Reinit LCD Display (just in case!)
 
                                             ClearMenuDisplay(1);
                                             ClearMenuDisplay(2);

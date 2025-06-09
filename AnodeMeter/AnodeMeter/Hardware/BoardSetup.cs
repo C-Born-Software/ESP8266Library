@@ -1535,7 +1535,7 @@ namespace AnodeMeter.Hardware
                 MenuItem = MenuItems.setTopLevel;
                 MenuStep = 0;
             }
-
+            Globals.bReInitDisplay = true;  // Reinit LCD Display (just in case!)
             PrintScreen("", "");
             Thread.Sleep(100);
             _lcd.SetScreen(0);
@@ -1735,6 +1735,7 @@ namespace AnodeMeter.Hardware
 
                 if (enter)
                 {
+                    Globals.bReInitDisplay = true;  // Reinit LCD Display (just in case!)
                     InSetupMode = true;
                     _lcd.SetScreen(1);
                 }
@@ -1749,6 +1750,7 @@ namespace AnodeMeter.Hardware
                     {
                         StillHeld = true;
                         InSetupMode = true;
+                        Globals.bReInitDisplay = true;  // Reinit LCD Display (just in case!)
                         _lcd.SetScreen(1);
                     }
                 }

@@ -30,6 +30,8 @@ namespace AnodeMeter
         public static byte BackLightLevel = 25; // Default to 25% duty cycle
         public static UInt16 Serial = 0;        // Serial number (as per box internal sticker)
 
+        public static bool bReInitDisplay = false;
+
         // Read from SD card
         //TODO DAV These are not yet (fully) implemented and will require some tuning.
         public static int SleepDelay = 5 * 60;  // When disconnected, hibernate after this many seconds without activity

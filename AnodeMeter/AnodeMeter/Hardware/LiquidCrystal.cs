@@ -108,7 +108,9 @@ namespace Hardware.LcdCharacterDisplay
             foreach (GpioPin p in _dataPorts)
                 p.SetDriveMode(op);
 
-
+            InitLcd(true);
+#if false
+            return;
             Thread.Sleep(50);                       // LCD controller needs some warm-up time
 #if true
             _rsPort.Write(PinLo);
@@ -136,6 +138,7 @@ namespace Hardware.LcdCharacterDisplay
             HomeCursor();
             CreateSpecialCharacters();
             UpdateDisplay();
+#endif
         }
         //TODO DAV Fix for broken Vn 4.3 SDK that loses some IO config after hibernate.
         // Remove when GHI fixes this
@@ -155,6 +158,28 @@ namespace Hardware.LcdCharacterDisplay
             SetBias(Globals.LCDBiasPC);
         }
 
+        public override void InitLcd(bool FirstRun = false)
+        {
+            Thread.Sleep(50);                       // LCD controller needs some warm-up time
+
+            _rsPort.Write(PinLo);
+            Write4Bits(0x03);
+            Thread.Sleep(5);
+            Write4Bits(0x03);
+            Thread.Sleep(5);
+            Write4Bits(0x03);
+            Thread.Sleep(5);
+            Write4Bits(0x02);
+            Thread.Sleep(5);
+
+            SendCommand(LcdCommand.LCD_FUNCTIONSET | LcdCommand.LCD_4BITMODE | LcdCommand.LCD_2LINE | LcdCommand.LCD_5x8DOTS); // set # lines, font size, etc.
+            SendCommand(LcdCommand.LCD_ENTRYMODESET | LcdCommand.LCD_ENTRYLEFT | LcdCommand.LCD_ENTRYSHIFTDECREMENT);
+            UpdateCursor();        // turn the display on with no cursor or blinking default
+            Clear_Display(FirstRun);        // clear it off
+            HomeCursor();
+            CreateSpecialCharacters();
+            UpdateDisplay();
+        }
         public override void Suspend()
         {
             DisplayUpdateThread?.Suspend();
@@ -219,9 +244,10 @@ namespace Hardware.LcdCharacterDisplay
             SendCommand(LcdCommand.LCD_SETDDRAMADDR | (LcdCommand)(col + row_offsets[row]));
         }
 
-        public void Clear_Display()
+        public void Clear_Display(bool ClearBase = true)
         {
-            base.ClearDisplay();
+            if(ClearBase)
+                base.ClearDisplay();
 #if false
             byte Space = (Encoding.UTF8.GetBytes(" "))[0];
             for(int iRow = 0; iRow < DisplayBuffer.Rows; iRow++) {
@@ -320,13 +346,6 @@ namespace Hardware.LcdCharacterDisplay
         }
         private void CreateSpecialCharacters()
         {
-#if false
-            CreateChar(SpecialLCDCharacters.batteryMt, new byte[] { 0x0E, 0x0E, 0x1F, 0x11, 0x11, 0x11, 0x11, 0x1F });
-            CreateChar(SpecialLCDCharacters.batteryQuart, new byte[] { 0x0E, 0x0E, 0x1F, 0x11, 0x11, 0x11, 0x1F, 0x1F });
-            CreateChar(SpecialLCDCharacters.batteryHalf, new byte[] { 0x0E, 0x0E, 0x1F, 0x11, 0x11, 0x1F, 0x1F, 0x1F });
-            CreateChar(SpecialLCDCharacters.battery3Quart, new byte[] { 0x0E, 0x0E, 0x1F, 0x11, 0x1F, 0x1F, 0x1F, 0x1F });
-            CreateChar(SpecialLCDCharacters.batteryFull, new byte[] { 0x0E, 0x0E, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F });
-#else
             // At present limited to 7 special characters, out of 8 available.
             // We could do some nice arrows, if had more space.
             // Look at implementing a cache system to allow any 8 on display at once, from a larger set of possibles.
@@ -338,8 +357,8 @@ namespace Hardware.LcdCharacterDisplay
             CreateChar(SpecialLCDCharacters.batteryFull, new byte[] { 0xe, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x0 });
             CreateChar(SpecialLCDCharacters.Tick, new byte[] { 0x0, 0x01, 0x03, 0x16, 0x1c, 0x08, 0x00, 0x0 });
             CreateChar(SpecialLCDCharacters.Down, new byte[] { 0x0, 0x00, 0x00, 0x00, 0x11, 0x0a, 0x04, 0x0 });   // Opposite of carat, for now
-#endif
         }
+
         // Up to eight characters of 5x8 pixels are supported (numbered 0 to 7). 
         // The appearance of each custom character is specified by an array of eight bytes, one for each row.
         // The five least significant bits of each byte determine the pixels in that row. 
