@@ -163,6 +163,20 @@ namespace AnodeMeter.Hardware
                 _McpAdc = null;
             }
         }
+        /// <summary>
+        /// Resets the I2C device connection. The connection will be re-established
+        /// on the next read/write operation. Call this after an I/O error.
+        /// </summary>
+        public void Reset()
+        {
+            if (_McpAdc != null)
+            {
+                _McpAdc.Dispose();
+                _McpAdc = null;
+            }
+            // Force re-initialization of configuration on the next call
+            _configDirty = true;
+        }
         /// <summary>Configures the ADC to use the prescribed channel and configures it accordingly</summary>
         /// <returns>Voltage representated as a double-precision real</returns>
         private void SwitchInputChannel(InputChannel ch)

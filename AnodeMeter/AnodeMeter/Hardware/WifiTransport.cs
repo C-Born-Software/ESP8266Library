@@ -173,6 +173,7 @@ namespace AnodeMeter.Hardware
                         }
                         catch (Exception e)
                         {
+                            _ = e;
                         }
                         
                         byte TryCount = 0;
@@ -386,6 +387,7 @@ namespace AnodeMeter.Hardware
                 }
                 catch (Exception e)
                 {
+                    _ = e;
                 }
             }
         }
@@ -400,6 +402,7 @@ namespace AnodeMeter.Hardware
                 }
                 catch (Exception e)
                 {
+                    _ = e;
                 }
             }
         }

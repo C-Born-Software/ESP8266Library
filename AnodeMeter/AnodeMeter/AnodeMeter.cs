@@ -104,11 +104,12 @@ namespace AnodeMeter
         {
             return Globals.HaveWifi ? _gw_wifi : _gw_usb; //TODO Fix with conditionals, USB connected etc checks later
         }
-        public void RegisterActivity()
+        public void RegisterActivity(bool bCancelMessages = true)
         {
             dtLastUserActivity = DateTime.Now;
             _bWaitingToHibernate = false;
-            _lcd.CancelTimedMessages();
+            if(bCancelMessages)
+              _lcd.CancelTimedMessages();
         }
         
         public void TriggerConfigCheck()
@@ -437,12 +438,13 @@ namespace AnodeMeter
 
         internal void Run()
         {
+            bool failed = false;
             try
             {
                 SetupMeterType();
                 Log = new Logging(_lcd);
 
-                RegisterActivity();
+                RegisterActivity(false);
                 _dtWaitaFewSeconds = DateTime.Now.AddSeconds(3);
                 //_hkTimer = new Timer(DoPeriodicHouseKeeping, null, 0, GlobalConsts.HOUSE_KEEPING_CHECK_SECONDS * 1000);
                 _hkTimer = new Timer(EverySecond, null, 0, 1000);
@@ -455,6 +457,7 @@ namespace AnodeMeter
             }
             catch (Exception ex)
             {
+                failed = true;
                 try
                 {
                     Logging.IssueEvent(Logging.ErrSeverity.Fatal, "Run Meter", ex.Message.ToString(), "Error");
@@ -462,8 +465,15 @@ namespace AnodeMeter
                 catch
                 {
                 }
-                GHIElectronics.TinyCLR.Native.Power.Reset();
-//                Microsoft.SPOT.Hardware.PowerState.RebootDevice(true);
+            }
+            finally
+            {
+                if (failed)
+                {
+                    // Ensure reboot even if logging failed
+                    IOMap.SetShutdownCode(IOMap.ShutdownCode.RunFail);
+                    GHIElectronics.TinyCLR.Native.Power.Reset();
+                }
             }
         }
 
@@ -553,6 +563,7 @@ namespace AnodeMeter
             }
             catch (Exception ex)
             {
+                _ = ex;
                 //We return 0 if conversion fails
             }
             return b;
@@ -741,6 +752,7 @@ namespace AnodeMeter
             //if (BatteryTooLow())
             {
                 _ds.WriteBattLog("Poweroff gAvBattVolts = " + Globals.gAvBattVolts);
+                IOMap.SetShutdownCode(IOMap.ShutdownCode.CritBattery);
                 _bsp.PowerOff("Charge Battery", 15);
             }
             if (_bRebootNextPass)
@@ -749,6 +761,7 @@ namespace AnodeMeter
                 _gw_usb.Close();
                 _gw_wifi.Close();
                 _sys.Close();
+                IOMap.SetShutdownCode(IOMap.ShutdownCode.ReConfig);
                 GHIElectronics.TinyCLR.Native.Power.Reset();
 //                Microsoft.SPOT.Hardware.PowerState.RebootDevice(true);
             }
@@ -816,6 +829,7 @@ namespace AnodeMeter
                     && Globals.PowerState != Globals.PowerStates.BatteryTest
                     && (DateTime.Now - dtLastUserActivity) > INACTIVITYTIME)
                 {
+                    IOMap.SetShutdownCode(IOMap.ShutdownCode.AutoOff);
                     _bsp.PowerOff("Auto Off", 15);
                 }
 
@@ -851,6 +865,7 @@ namespace AnodeMeter
             int res = 0;
             // Time to Sleep
             _lcd.ShowTimedMessage("In Stand-By", 2);
+            IOMap.SetShutdownCode(IOMap.ShutdownCode.Sleeping);
             Thread.Sleep(500);
             DateTime SleepStart = DateTime.Now;
             _lcd.SetBacklight(0);
@@ -866,6 +881,7 @@ namespace AnodeMeter
             _lcd.FixIO();
             Debug.WriteLine("Awaken");
             _tm.RefreshSystemTime();
+            IOMap.SetShutdownCode(IOMap.ShutdownCode.Running);
 
             TimeSpan tmDiff = DateTime.Now - SleepStart;
             long secs = (DateTime.Now - SleepStart).Ticks / TimeSpan.TicksPerSecond;
@@ -878,8 +894,12 @@ namespace AnodeMeter
             _lcd.ReInit();
 
             // If we have been hibernating for >x (default  59) minutes (selectable later?) then may as well power off
-            if ((Globals.ShutDownAfterMinutes > 0) &&  (secs > (60 * Globals.ShutDownAfterMinutes)) && (_bsp != null))
+            if ((Globals.ShutDownAfterMinutes > 0) && (secs > (60 * Globals.ShutDownAfterMinutes)) && (_bsp != null))
+            {
+                IOMap.SetShutdownCode(IOMap.ShutdownCode.AutoOff);
                 _bsp.PowerOff("Power Off", 15);
+            }
+            IOMap.SetShutdownCode(IOMap.ShutdownCode.Running);
             return res;
         }
         private void HousekeepingWhileConnected()
@@ -1225,6 +1245,7 @@ namespace AnodeMeter
             //if (BatteryTooLow())
             if (Globals.gAvBattVolts <= Globals.BattVoltLow)
             {
+                IOMap.SetShutdownCode(IOMap.ShutdownCode.LowBattery);
                 _bsp.PowerOff("Charge Battery", 5);
             }
             else
@@ -1534,7 +1555,10 @@ namespace AnodeMeter
                     if (_bsp != null)
                     {
                         if (_bsp.EnterShutDownMode(false))
+                        {
+                            IOMap.SetShutdownCode(IOMap.ShutdownCode.UserButton);
                             _bsp.PowerOff("Power Off", 5);
+                        }
 
                         if (_bsp.EnterSetupMode(false))
                             return;

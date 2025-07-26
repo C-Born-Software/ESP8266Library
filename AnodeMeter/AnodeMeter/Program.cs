@@ -16,6 +16,9 @@ namespace AnodeMeter
 #if true
             Profile.DebugTime("We have control"); //TODO DAV DEBUG
 
+            Globals.ShutdownCode = IOMap.GetShutdownCode();
+            IOMap.SetShutdownCode(IOMap.ShutdownCode.Running);
+
             System.Version ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
             Globals.BuildDate = new DateTime(2000, 1, 1) + new TimeSpan(ver.Build * TimeSpan.TicksPerDay + ver.Revision * TimeSpan.TicksPerSecond * 2);
             ver = null;
@@ -31,9 +34,11 @@ namespace AnodeMeter
                     if (GHIElectronics.TinyCLR.Native.Memory.IsExtendedHeap() == false)
                     {
                         //Debug.WriteLine("Extending heap Disabled for testing, FIX!");// TODO DAV DEBUG
+                        IOMap.SetShutdownCode(IOMap.ShutdownCode.MemExtend);
                         GHIElectronics.TinyCLR.Native.Memory.ExtendHeap();
                         GHIElectronics.TinyCLR.Native.Power.Reset();
                     }
+                    IOMap.SetShutdownCode(IOMap.ShutdownCode.Running);
                     AM.Run();
                     break;
             }

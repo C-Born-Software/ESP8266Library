@@ -260,6 +260,7 @@ namespace AnodeMeter.Hardware
                         }
                         catch (Exception ex)
                         {
+                            _ = ex;
                             // timed out exception? Set bytesRead to 0. Perhaps add an actual timeout value?
                             bytesRead = 0;
                         }

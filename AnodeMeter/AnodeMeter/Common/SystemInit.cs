@@ -9,7 +9,8 @@ namespace AnodeMeter.Common
     public abstract class SystemInit
     {
         private int _meterNumber = -1;
-        protected string _startCause = "Normal Restart, Build Date=" + Globals.BuildDate.ToString("yyyy-MM-dd HH:mm:ss");
+        //protected string _startCause = "Normal Restart, Build Date=" + Globals.BuildDate.ToString("yyyy-MM-dd HH:mm:ss");
+        protected string _startCause = IOMap.ShutdownMsg() + ", Build Date=" + Globals.BuildDate.ToString("yyyy-MM-dd HH:mm:ss");
 
         public string GetStartCause()
         {

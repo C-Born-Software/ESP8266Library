@@ -182,6 +182,9 @@ namespace AnodeMeter.Common
             ReInit();
             ShowTimedMessage("Booting", "AnodeMeter", 1);
             ShowTimedMessage("C-Born Software", "Built " + Globals.BuildDate.ToString("yyyy-MM-dd"), 3);
+
+            ShowTimedMessage("Last State: ", IOMap.ShutdownMsg(), 3);
+
             MoveIntoDisplay("Loading Meter", new LcdDisplay.CursorPosition(0, 0));
             MoveIntoDisplay("Configuration", new LcdDisplay.CursorPosition(1, 0));
             LcdReady = true;
@@ -215,6 +218,7 @@ namespace AnodeMeter.Common
                     UpdateDisplay();
                 } catch(Exception e)
                 {
+                    _ = e;
                     ReInit();
                 }
 

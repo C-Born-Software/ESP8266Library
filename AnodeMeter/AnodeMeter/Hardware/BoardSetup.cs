@@ -15,7 +15,7 @@ using GHIElectronics.TinyCLR.Devices.Storage;
 using GHIElectronics.TinyCLR.IO;
 using GHIElectronics.TinyCLR.Update;
 using AnodeMeter.Common;
-using AnodeMeter;
+using AnodeMeter.Hardware;
 using PervasiveDigital.Net;
 //using PervasiveDigital.Utilities;
 using PervasiveDigital.Hardware.ESP8266;
@@ -73,6 +73,89 @@ namespace AnodeMeter
         public const int WiFiResetPin = SC20260.GpioPin.PE4;
         public const int WiFiProgramPin = SC20260.GpioPin.PI4;
         public const string WiFiComPort = SC20260.UartPort.Uart6; //"COM3";
+
+        public enum ShutdownCode : byte
+        {
+            Unknown = 0, UserMenu, UserButton, LowBattery, CritBattery, ReConfig, MemExtend, ChangeMode, AutoOff,
+            Running = 100, Sleeping, RunFail
+        }
+
+        public static string ShutdownMsg(ShutdownCode code)
+        {
+            string s;
+            switch (code)
+            {
+                case ShutdownCode.UserMenu:
+                    s = "Menu";
+                    break;
+                case ShutdownCode.UserButton:
+                    s = "Button";
+                    break;
+                case ShutdownCode.LowBattery:
+                    s = "LowBatt";
+                    break;
+                case ShutdownCode.CritBattery:
+                    s = "CritBatt";
+                    break;
+                case ShutdownCode.ReConfig:
+                    s = "ReConfig";
+                    break;
+                case ShutdownCode.MemExtend:
+                    s = "MemExtend";
+                    break;
+                case ShutdownCode.ChangeMode:
+                    s = "ChangeMode";
+                    break;
+                case ShutdownCode.AutoOff:
+                    s = "AutoOff";
+                    break;
+                case ShutdownCode.Running:
+                    s = "Running";
+                    break;
+                case ShutdownCode.Sleeping:
+                    s = "Sleeping";
+                    break;
+                case ShutdownCode.RunFail:
+                    s = "RunFailed";
+                    break;
+                default:
+                    s = "???";
+                    break;
+            }
+            string type = ((uint)code >= 100) ? "Err. Was " : "Normal: ";
+            return type + s;
+        }
+
+        public static string ShutdownMsg()
+        {
+            return ShutdownMsg((ShutdownCode)Globals.ShutdownCode);
+        }
+
+        public static uint GetShutdownCode()
+        {
+            var readData = BoardSetup.ReadBBRam();
+            if((readData == null) || readData.Length < 2)
+                return 0;
+            return readData[1];
+        }
+
+        public static void SetShutdownCode(ShutdownCode sc)
+        {
+            SetShutdownCode((uint)sc);
+        }
+        public static void SetShutdownCode(uint code)
+        {
+            var readData = BoardSetup.ReadBBRam();
+            if (readData == null || readData.Length < 2)
+            {
+                byte startFlags = (readData != null && readData.Length >= 1) ? readData[0] : (byte)0;
+                readData = new byte[2];
+                readData[0] = startFlags;
+            }
+
+            readData[1] = (byte)code;
+            BoardSetup.WriteBBRam(readData);
+        }
     }
 }
 
@@ -728,6 +811,7 @@ namespace AnodeMeter.Hardware
                                         {
                                             MenuItem = 0;
                                             MenuStep = 0;
+                                            IOMap.SetShutdownCode(IOMap.ShutdownCode.UserMenu); // Set Power-off code
                                             PowerOff("", 1);
                                             break;
                                         }
@@ -1157,7 +1241,7 @@ namespace AnodeMeter.Hardware
                                                 else break;
                                             }
                                             for(; ; )
-#endif                                                
+#endif
                                         }
                                         break;
                                     case MenuItems.wifiSpeedTest:        // Keep WiFi running so they can ping-test it
@@ -1299,8 +1383,8 @@ namespace AnodeMeter.Hardware
         }
 
         // ================= WiFi Test ========================
+#if false
 #warning //TODO - disable WiFi Test?
-#if true
         private static void sock_DataReceived(object sender, SocketReceivedDataEventArgs args)
         {
             var socket = (WifiSocket)sender;
@@ -1477,6 +1561,7 @@ namespace AnodeMeter.Hardware
         {
             Power(false);
             Thread.Sleep(1000);
+            IOMap.SetShutdownCode(IOMap.ShutdownCode.Running);
         }
 
         public static void Power(bool State)
@@ -1834,7 +1919,10 @@ namespace AnodeMeter.Hardware
         // Save startup flags in BB Ram
         static void SetBBStartFlags(StartFlags flags)
         {
-            byte[] data = { (byte)flags };
+            var data = ReadBBRam();
+            if(data == null || data.Length < 1)
+                data = new byte[1];
+            data[0] = (byte)flags;
             WriteBBRam(data);
         }
         // Get startup flags from BB Ram
@@ -1844,62 +1932,68 @@ namespace AnodeMeter.Hardware
             Debug.WriteLine("BB Ram: " + ((data == null) ? "null" : data.Length.ToString()));
             if (data == null)
                 return StartFlags.Normal;
-            return (StartFlags)data[2]; // 1st byte after header
+            return (StartFlags)data[0]; // 1st byte of data
         }
         const ushort MaxBBData = 100; // Could use  rtc.BackupMemorySize() for this. Later...
         const ushort MinBBData = 5; // 2 bytes for length, 2 bytes for CRC, at least 1 data byte
 
         // Read BB Ram according to header size, and validate CRC. Return as byte array if valid, null (or zero size array?) if not
-        static byte[] ReadBBRam()
+        public static byte[] ReadBBRam()
         {
             var rtc = RtcController.GetDefault();
+
+            // Read header (2-byte length)
             var header = new byte[2];
             rtc.ReadBackupMemory(header, 0);
-            ushort len = BitConverter.ToUInt16(header, 0);
-            if ((len < MinBBData) || (len > MaxBBData))
+            ushort totalLength = BitConverter.ToUInt16(header, 0);
+
+            if (totalLength < MinBBData || totalLength > MaxBBData)
                 return null;
-            var data = new byte[(int)len];
-            rtc.ReadBackupMemory(data, 0);
+
+            // Read entire block (length + payload + CRC)
+            var fullData = new byte[totalLength];
+            rtc.ReadBackupMemory(fullData, 0);
+
+            // Validate CRC
             var crc = new Crc16();
-            var crcVal = crc.ComputeHash(data, 0, len - 2);
-            ushort dataCrc = BitConverter.ToUInt16(data, len - 2);
-            if (crcVal == dataCrc)
-                return data;
-            return null;
+            ushort computed = crc.ComputeHash(fullData, 0, totalLength - 2);
+            ushort stored = BitConverter.ToUInt16(fullData, totalLength - 2);
+
+            if (computed != stored)
+                return null;
+
+            // Strip header and CRC → return just payload
+            int payloadLength = totalLength - 4;
+            var payload = new byte[payloadLength];
+            Array.Copy(fullData, 2, payload, 0, payloadLength);
+
+            return payload;
         }
-        // Write BB Ram, using existing structure if present, else build a new one
-        static void WriteBBRam(byte[] data)
+        // Write BB Ram, wrapping data in header and CRC
+        public static void WriteBBRam(byte[] data)
         {
             var rtc = RtcController.GetDefault();
             var crc = new Crc16();
-            var oldData = ReadBBRam();
-            if (oldData == null)
-                oldData = new byte[data.Length + 4];
 
-            var len = (ushort)oldData.Length - 4;
-            if (len < data.Length)
-            {   // Need to expand BB Ram
-                byte[] newArray = new byte[oldData.Length];
-                Array.Copy(oldData, newArray, oldData.Length);
-                oldData = newArray;
-            }
-            // Copy data across
-            for (int i = 0; i < data.Length; i++)
-                oldData[i + 2] = data[i];
+            int totalLength = data.Length + 4; // 2 bytes header + payload + 2 bytes CRC
+            var fullData = new byte[totalLength];
 
-            // Add header to old data
-            byte[] lenBytes = BitConverter.GetBytes(oldData.Length);
-            oldData[0] = lenBytes[0];
-            oldData[1] = lenBytes[1];
+            // Header: total length (little-endian)
+            var lenBytes = BitConverter.GetBytes((ushort)totalLength);
+            fullData[0] = lenBytes[0];
+            fullData[1] = lenBytes[1];
 
-            // Add CRC to old data
-            var crcVal = crc.ComputeHash(oldData, 0, oldData.Length - 2);
-            byte[] crcBytes = BitConverter.GetBytes(crcVal);
-            oldData[oldData.Length - 2] = crcBytes[0];
-            oldData[oldData.Length - 1] = crcBytes[1];
+            // Copy payload into buffer
+            Array.Copy(data, 0, fullData, 2, data.Length);
 
-            // Write to BB Ram
-            rtc.WriteBackupMemory(oldData, 0);
+            // CRC over everything except final 2 bytes
+            ushort crcVal = crc.ComputeHash(fullData, 0, totalLength - 2);
+            var crcBytes = BitConverter.GetBytes(crcVal);
+            fullData[totalLength - 2] = crcBytes[0];
+            fullData[totalLength - 1] = crcBytes[1];
+
+            // Write to BB RAM
+            rtc.WriteBackupMemory(fullData, 0);
         }
 
         static void RebootToMode(StartFlags mode)
@@ -1908,6 +2002,7 @@ namespace AnodeMeter.Hardware
             SetBBStartFlags(mode);
             //SleepAndFixTime(1);
             Thread.Sleep(100);                            // without this delay the BB flag doesn't work, assume it it written async on another thread
+            IOMap.SetShutdownCode(IOMap.ShutdownCode.ChangeMode);
             GHIElectronics.TinyCLR.Native.Power.Reset();
         }
         static void RebootToMs()
@@ -2140,6 +2235,7 @@ namespace AnodeMeter.Hardware
                 return sa.Left(sa.Length - 4);
             } catch(Exception e)
             {
+                _ = e;
                 return "";
             }
         }

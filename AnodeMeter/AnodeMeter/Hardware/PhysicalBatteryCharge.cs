@@ -74,6 +74,7 @@ namespace AnodeMeter.Hardware
                 }
                 catch (Exception e)
                 {
+                    _ = e;
                     // Ignore
                 }
 
