@@ -185,7 +185,6 @@ namespace AnodeMeter.Hardware
             WaitingForPacketSize,
             WaitingForPackBody
         }
-
         private void PollUSB()
         {
             int bytesRead = 0;
@@ -208,6 +207,7 @@ namespace AnodeMeter.Hardware
             DeviceState previousState = DeviceState.Default; // Is this a thing?
 
             DateTime usbStateDebounce = DateTime.MinValue;
+            bool bDisconnectedErrorLogged = false;
 
             //int cnt = 0; //TODO REMOVE DEBUG DAV
             while (true)
@@ -223,6 +223,11 @@ namespace AnodeMeter.Hardware
                 //Debug.Print("PollUSB: " + ++cnt); //TODO REMOVE DEBUG DAV
                 try
                 {
+                    if (winUsb == null)
+                    {
+                        Thread.Sleep(1000);
+                        continue;
+                    }
                     _usbState = winUsb.DeviceState;
 
                     //Debug.Print("USB State: " + _usbState); ////TODO REMOVE DEBUG DAV 
@@ -248,11 +253,13 @@ namespace AnodeMeter.Hardware
                         {
                             usbWasAlreadyRunning = false;
                         }
+                        bDisconnectedErrorLogged = false; // Reset log flag when disconnected gracefully
                         Thread.Sleep(1200);
                     }
                     else //running
                     {
                         usbWasAlreadyRunning = true;
+                        bDisconnectedErrorLogged = false; // Reset log flag when connected
                         rxBuffIndex = 0;
                         try
                         {
@@ -365,8 +372,8 @@ namespace AnodeMeter.Hardware
 
                                     // In 4.3 Write is a void, so must always succeed?? DAV
                                     // GHI says: Write loops internally until all of the bytes have been written or the amount of time specified by WriteTimeout has passed
-                                     _usbStream.Write(_txBuff, 0, _txBuff.Length);
-                                     _txOpCompleted = true;
+                                    _usbStream.Write(_txBuff, 0, _txBuff.Length);
+                                    _txOpCompleted = true;
                                 }
                                 else
                                     Thread.Sleep(500);
@@ -385,7 +392,13 @@ namespace AnodeMeter.Hardware
                 catch (Exception ex)
                 {
                     rs = receiveStates.WaitForStart;
-                    Logging.IssueEvent(Logging.ErrSeverity.Warning, "UsbTransport::PollUSB", "Exception processing usb data:" + ex.Message, "USB Error");
+                    if (!bDisconnectedErrorLogged)
+                    {
+                        Logging.IssueEvent(Logging.ErrSeverity.Warning, "UsbTransport::PollUSB", "USB connection lost or timed out: " + ex.Message, "USB Error");
+                        bDisconnectedErrorLogged = true;
+                    }
+                    // Sleep to prevent tight loop of exceptions
+                    Thread.Sleep(1000);
                 }
             }
         }

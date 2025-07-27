@@ -1,6 +1,15 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.3.0.1_20250727.tca
+==========================
+Vn. 4.3.3.2. Clean up excessive logging "timeout" when meter disconnected from USB - we only need to ne told once!
+
+App_2.3.0.1_20250726.tca
+==========================
+Fixes for HiResADC to prevent seeing reading < 0.001 V as error, closing class to quickly, and overloading garbage collector, leading to Out Of Memory errors and apparent lockup
+Add shutdown/startup diagnostics, running mode stored in RTC BBRam (with the reboot to DiskDriveMode flag) and reported and logged on startup
+
 App_2.3.0.1_20250123.tca
 ==========================
 Finally got a meter back with the "garbage characters" fault, repeatable whenever it took a hard knock.
