@@ -2623,6 +2623,7 @@ namespace AnodeMeter
             {
                 _lcd.ShowTimedMessage("Sched Empty");
                 NoPotsToMeter = true;
+                Navigation.MovePreviousMenu();
             }
         }
 

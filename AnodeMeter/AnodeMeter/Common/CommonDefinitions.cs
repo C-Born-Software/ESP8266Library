@@ -170,11 +170,12 @@ namespace AnodeMeter
         public const string MeasurementsRoot = RootFsPath + "\\Measurements";
         public const string NewMeasurementsPath = MeasurementsRoot + "\\New";
         public const string OldMeasurementsPath = MeasurementsRoot + "\\Old";
+        public const string OldSchedulePath = SchedPath + "\\Old";
         public const string BattLogsPath = LogsPath + "\\Battery";
 
         public static string[] GetPaths()
         {
-            string[] Paths = { ConfigPath, SchedPath, LogsPath, LogsArchivePath, MeasurementsRoot, NewMeasurementsPath, OldMeasurementsPath, BattLogsPath };
+            string[] Paths = { ConfigPath, SchedPath, LogsPath, LogsArchivePath, MeasurementsRoot, NewMeasurementsPath, OldMeasurementsPath, BattLogsPath, OldSchedulePath };
             return Paths;
         }
     }

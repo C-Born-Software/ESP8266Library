@@ -723,7 +723,7 @@ namespace AnodeMeter.Hardware
                                                 }
                                                 Thread.Sleep(1000);
 
-                                                DiskDriveMode(true);
+                                                //DiskDriveMode(true);
                                                 MenuItem = MenuItems.modeDiskDrive;
                                                 MenuStep = 0;
                                             }
@@ -1416,10 +1416,10 @@ namespace AnodeMeter.Hardware
         {
             
             if (on == LastReqState) return;
-            LastReqState = on;
 
         if (on)
             {
+                bool success = false;
                 try
                 {
                     _gw_usb.Suspend();
@@ -1446,10 +1446,24 @@ namespace AnodeMeter.Hardware
                     // TODO DAV 11MAR2023 See why lock at next line?
                     //int res = ConfigureSystem.Meter != null ? ConfigureSystem.Meter.QuickNap(1) : 0;
                     StartMs();
+                    success = true;
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine("Exception: " + ex.Message);
+                }
+                finally
+                {
+                    if (!success)
+                    {
+                        _ds.Lock(false); // cleanup if StartMs failed
+                        _gw_usb.Resume(); // resume USB if you suspended
+                    }
+                    else                     
+                    {
+                        LastReqState = true; // Set the state to on
+                        Debug.WriteLine("Mass Storage Started");
+                    }
                 }
             }
             else
@@ -1457,17 +1471,17 @@ namespace AnodeMeter.Hardware
                 try
                 {
                     StopMs();
-                    //ms.Disable();
-                    //ms.RemoveLogicalUnit(ConfigureSystem._ps.Hdc);
-                    //ms.Dispose();
-
-                    _ds.Lock(false);
-                    _am.TransportInit();    // In case delayed for boot to MassStorage
-                    _gw_usb.Resume();
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine("Exception: " + ex.Message);
+                }
+                finally
+                {
+                    _ds.Lock(false);         // Always unlock even if StopMs fails
+                    _am.TransportInit();     // Reinitialize comms
+                    _gw_usb.Resume();        // Resume USB stack
+                    LastReqState = false; // always reset when turning off
                 }
             }
         }
@@ -1492,6 +1506,11 @@ namespace AnodeMeter.Hardware
             });
             //ms = new MassStorage(usbclientController);
             sd = StorageController.FromName(SC20260.StorageController.SdCard);
+            if (sd == null)
+            {
+                Debug.WriteLine("SD controller not available.");
+                throw new InvalidOperationException("SD controller not available");
+            }
             ms.DeviceStateChanged += Ms_DeviceStateChanged;
             ms.AttachLogicalUnit(sd.Hdc);
             ms.Enable();

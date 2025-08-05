@@ -100,7 +100,14 @@ namespace AnodeMeter.Hardware
                 Globals.WifiDisabled = true; //So we don't keep trying...
                 return;
             }
-            Globals.WifiInfo["Meter MAC"] = wifi.StationMacAddress;
+            try
+            {
+                Globals.WifiInfo["Meter MAC"] = wifi.StationMacAddress;
+            }
+            catch (Exception ex)
+            {
+                var _ = ex;
+            }
             //TODO DAV Add method taking string to library! 19DEC2023
             if (Globals.StaticIP != "") {
                 wifi.SetOperatingMode(OperatingMode.Station);

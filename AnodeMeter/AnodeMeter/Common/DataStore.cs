@@ -117,7 +117,7 @@ namespace AnodeMeter.Common
             DateTime dtTooOld = DateTime.Now - new TimeSpan(TimeSpan.TicksPerDay * GlobalConsts.FILE_RETENTION_DAYS);
             try
             {
-                string[] foldersToPurge = new string[] { Folders.OldMeasurementsPath, Folders.LogsPath, Folders.LogsArchivePath, Folders.SchedPath };
+                string[] foldersToPurge = new string[] { Folders.OldMeasurementsPath, Folders.LogsPath, Folders.LogsArchivePath, Folders.SchedPath, Folders.OldSchedulePath };
                 foreach (string folder in foldersToPurge)
                 {
                     // Added for debugging...
@@ -158,6 +158,31 @@ namespace AnodeMeter.Common
                 Logging.IssueEvent(Logging.ErrSeverity.Severe, "DataStore::CleanResultsOut", "Can't rename file \"" + FileDefs.ScheduleResultsNew + "\" to \"" + fName + "\". Reason: " + ex.Message, "");
             }
 
+            return bOK;
+        }
+        public bool ArchiveSchedules()
+        {
+            bool bOK = false;
+            DateTime dt = ScheduleFileCreationTime(); // returns datetime.minvalue if doesn't exist or doesn't have valid date line at top
+            if (dt > DateTime.MinValue)
+            {
+                string fName = Folders.OldSchedulePath + "\\" + "Sched_" + dt.ToString("yyyyMMddHHmmss") + ".csv";
+                try
+                {
+                    if (!FileExists(fName)) // If already there we won't bother copying another with the same date
+                    {
+                        File.Move(FileDefs.SchedulesFileName, fName);
+                        FlushFileSystem();
+                    }
+                    bOK = true;
+                }
+                catch (Exception ex)
+                {
+                    Logging.IssueEvent(Logging.ErrSeverity.Severe, "DataStore::ArchiveSchedules",
+                        "Can't rename file \"" + FileDefs.ScheduleResultsNew + "\" to \"" + fName + "\". Reason: " +
+                        ex.Message, "");
+                }
+            }
             return bOK;
         }
         public static void FlushFileSystem()
@@ -315,14 +340,14 @@ namespace AnodeMeter.Common
         }
         private void WriteFile(string fName, byte[] buff, bool append = false)
         {
+            if (_IsLocked) return;
+
             FStream fs = null;
             try
             {
                 fs = new FStream(fName, append ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None);
                 fs.Write(buff, 0, buff.Length);
                 fs.Flush();
-                fs.Close();
-                fs = null;
                 FlushFileSystem();
             }
             catch (Exception ex)
@@ -332,8 +357,14 @@ namespace AnodeMeter.Common
                 if (fName == FileDefs.SystemConfigFile)
                     throw ex;
             }
-            if (fs != null)
-                fs.Close();
+            finally
+            {
+                if (fs != null)
+                {
+                    try { fs.Close(); }
+                    catch { /* ignore secondary errors */ }
+                }
+            }
         }
         public bool WriteConfigFile(string configData)
         {
@@ -395,16 +426,18 @@ namespace AnodeMeter.Common
                      * The Encoding.UTF8.GetChars alone takes 1.25 seconds
                      */
                     //res = new string(Encoding.UTF8.GetChars(buff2)).Replace("\r\n","\r");
-                    res = new string(Encoding.UTF8.GetChars(buff2));
+                    res = new string(Encoding.UTF8.GetChars(buff2,0,j));
                 }
             }
             catch (Exception ex)
             {
+                var _ = ex;
                 if (!FailQuietly)
                 {
                     //Logging.IssueEvent(Logging.ErrSeverity.Severe, "DataStore::ReadFactoryDefaults", "Can't read data from \"" + FileDefs.FactoryDefaultsFile + "\". Reason: " + ex.Message, "");
-                    throw ex;
+                    throw;
                 }
+                return "";
             }
             return res;
         }
@@ -725,6 +758,7 @@ namespace AnodeMeter.Common
         {
             try
             {
+                ArchiveSchedules();
                 WriteFile(FileDefs.SchedulesFileName, _theSchedData);
             }
             catch (Exception ex)
@@ -784,14 +818,7 @@ namespace AnodeMeter.Common
 
             try
             {
-                if (FileExists(FileDefs.SchedulesFileName))
-                {
-                    byte[] schedData = ReadFile(FileDefs.SchedulesFileName);
-                    if (schedData != null)
-                    {
-                        result = new string(Encoding.UTF8.GetChars(schedData));
-                    }
-                }
+                result = ReadFileAsString(FileDefs.SchedulesFileName);
             }
             catch (Exception ex)
             {
