@@ -1,9 +1,17 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.3.0.1_20250805.tca
+==========================
+Vn. 4.3.3.3. Port recent updates from G120 version, including:
+Clean up handling of CRLF or LF characters in Schedules.csv These could be introduced when copying the schedules by cut & paste via an editor, and could case problems at the meter. Illegal (unhandled) characters are now stripped out when read.
+System added to archive old schedules (in "Old" subdirectory) for a month. The KeepOldFiles system stopped old files being deleted, but existing files could still be overwritten ny the database value. "KeepOldFiles" was originally introduced to retain schedules when the meter could not connect to the DB
+Lock file writes when in DiskDrive mode This isn't normally a concern as we don't take reading while in DiskDriveMode, however it could come up while using simulated inputs in the office. This prevents the exception logging in this case.
+Various edge-case code fixes cleanups.
+
 App_2.3.0.1_20250727.tca
 ==========================
-Vn. 4.3.3.2. Clean up excessive logging "timeout" when meter disconnected from USB - we only need to ne told once!
+Vn. 4.3.3.2. Clean up excessive logging "timeout" when meter disconnected from USB - we only need to be told once!
 
 App_2.3.0.1_20250726.tca
 ==========================

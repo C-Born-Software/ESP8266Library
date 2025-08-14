@@ -2627,7 +2627,6 @@ namespace AnodeMeter
             }
         }
 
-
         private void ProcessAnode(Boolean AnodeSkipped)
         {
             try
@@ -2635,11 +2634,22 @@ namespace AnodeMeter
                 if (_CurrentAnode != null)
                 {
                     bool bRewoundToLastPot = false;
-
+                    // Ensure we have a PotMeasurementRecord for the current pot even if the schedule
+                    // doesn't start on the "_FirstAnodeForPot" (unusual schedule from site).
                     if (_CurrentAnode._FirstAnodeForPot)
                     {
                         //TODO DAV Fixing exceptions. Default to 32 or 0?
-                        int ac = _plant.GetPotDetails(_CurrentAnode._potName) == null ? 0 : _plant.GetPotDetails(_CurrentAnode._potName)._anodeCount;
+                        int ac = _plant.GetPotDetails(_CurrentAnode._potName) == null ? 32 : _plant.GetPotDetails(_CurrentAnode._potName)._anodeCount;
+                        _PotAnodeResults = new PotMeasurementRecord(DateTime.Now, _CurrentAnode._potName, MeterNumber.ToString(), ac);
+                    }
+                    else if (_PotAnodeResults == null)
+                    {
+                        // Lazy-init if the "first" flag is missing but we still received an anode.
+                        int ac = 32; // Safe default to avoid out-of-range on AddMeasuredValue()
+                        var potDetails = _plant.GetPotDetails(_CurrentAnode._potName);
+                        if (potDetails != null && potDetails._anodeCount > 0)
+                            ac = potDetails._anodeCount;
+
                         _PotAnodeResults = new PotMeasurementRecord(DateTime.Now, _CurrentAnode._potName, MeterNumber.ToString(), ac);
                     }
                     else
@@ -2649,30 +2659,27 @@ namespace AnodeMeter
                     }
 
                     if (!AnodeSkipped)
-                        _PotAnodeResults.AddMeasuredValue(_CurrentAnode.Name, _currentMeasVolts, _CurrentAnode._measType);
-
+                    {
+                        // Guard against any remaining edge cases
+                        if (_PotAnodeResults != null)
+                            _PotAnodeResults.AddMeasuredValue(_CurrentAnode.Name, _currentMeasVolts, _CurrentAnode._measType);
+                    }
 
                     //this is a special case where there is only one anode
                     //if (_CurrentAnode._FirstAnodeForPot && _CurrentAnode._MidAnodeForPot && _CurrentAnode._LastAnodeForPot)
                     //{
-
                     //    _PotAnodeResults = new PotMeasurementRecord(DateTime.Now, _CurrentAnode._potName, MeterNumber.ToString(), _plant.GetPotDetails(_CurrentAnode._potName)._anodeCount);
-
                     //    if (!AnodeSkipped)
                     //    {
                     //        _PotAnodeResults.AddMeasuredValue(_CurrentAnode.Name, _currentMeasVolts, _mtExpectedNext);
                     //    }
-
                     //    _ds.WritePotMeasurement(_PotAnodeResults.MyToString());
-
                     //}
                     //else
                     //{
-
                     //    if (_CurrentAnode._FirstAnodeForPot)
                     //    {
                     //        _PotAnodeResults = new PotMeasurementRecord(DateTime.Now, _CurrentAnode._potName, MeterNumber.ToString(), _plant.GetPotDetails(_CurrentAnode._potName)._anodeCount);
-
                     //        if (!AnodeSkipped)
                     //        {
                     //            _PotAnodeResults.AddMeasuredValue(_CurrentAnode.Name, _currentMeasVolts, _mtExpectedNext);
@@ -2684,21 +2691,17 @@ namespace AnodeMeter
                     //        _prevAdHocAnode = null;
                     //    }
 
-
                     if (_CurrentAnode._MidAnodeForPot && !AnodeSkipped)
                     {
                         _led.IndicateMilestone(LED.Milestones.HalfPot);
                         // _PotAnodeResults.AddMeasuredValue(_CurrentAnode.Name, _currentMeasVolts, _mtExpectedNext);
                     }
 
-
-
                     if (_CurrentAnode._LastAnodeForPot)
                     {
                         if (!AnodeSkipped)
                         {
                             _led.IndicateMilestone(LED.Milestones.EndPot);
-                            //_PotAnodeResults.AddMeasuredValue(_CurrentAnode.Name, _currentMeasVolts, _mtExpectedNext);
 
                             if (CurrentChoice == "AH")
                             {
@@ -2709,28 +2712,28 @@ namespace AnodeMeter
                             }
                         }
 
-                        _ds.WritePotMeasurement(_PotAnodeResults.MyToString(Navigation.SubChoice(CurrentChoice)));
-                        if (MaskedPots.Contains(_PotAnodeResults.PotNumber))
+                        // Only write results if we actually have something to write and DataStore is available
+                        if (_PotAnodeResults != null && _ds != null)
                         {
-                            // Now we just have to build an output string from the schedule info and the results data!
-                            string sched = MaskedPots[_PotAnodeResults.PotNumber].ToString();
-                            var sData = _PotAnodeResults.MaskedPotString(sched);
-                            _ds.WritePotMeasurement(sData);
+                            _ds.WritePotMeasurement(_PotAnodeResults.MyToString(Navigation.SubChoice(CurrentChoice)));
+
+                            if (MaskedPots.Contains(_PotAnodeResults.PotNumber))
+                            {
+                                // Now we just have to build an output string from the schedule info and the results data!
+                                string sched = MaskedPots[_PotAnodeResults.PotNumber].ToString();
+                                var sData = _PotAnodeResults.MaskedPotString(sched);
+                                _ds.WritePotMeasurement(sData);
+                            }
                         }
 
                         if (LastThreeReadings.Count != 0)
                             LastThreeReadings.Clear();
-
                     }
-
 
                     //if (!AnodeSkipped && (!_CurrentAnode._LastAnodeForPot && !_CurrentAnode._FirstAnodeForPot && !_CurrentAnode._MidAnodeForPot))
                     //{
                     //    _PotAnodeResults.AddMeasuredValue(_CurrentAnode.Name, _currentMeasVolts, _mtExpectedNext);
                     //}
-
-
-
 
                     if (!AnodeSkipped)
                     {
@@ -2795,18 +2798,14 @@ namespace AnodeMeter
                             CurrentChoice = Navigation.GetCurrentChoice();
                             _lcd.MoveIntoDisplay(Navigation.Display(), MenuChoicePosition);
                         }
-
                     }
-
                 }
             }
             catch (Exception ex)
             {
                 Logging.IssueEvent(Logging.ErrSeverity.Severe, "AnodeMeter::ProcessAnode", "Error Processing Anode. Reason: " + ex.Message + "; StackTrace: " + ex.StackTrace, "Software Err!");
             }
-
         }
-
 
         private void DisplayMeteringInfo(Schedule.AnodeSched ASchedule)
         {
