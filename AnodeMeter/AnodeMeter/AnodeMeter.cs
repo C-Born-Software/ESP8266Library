@@ -737,7 +737,7 @@ namespace AnodeMeter
 
             //Globals.bReInitDisplay = true;
 
-            if (Globals.DiskDriveMode || _ds.IsLocked())
+            if (Globals.DiskDriveMode || (_ds == null) ||  _ds.IsLocked())
             {
                 //Debug.Print("HouseKeeping Deferred"); //TODO DEBUG Delete DAV
                 return;

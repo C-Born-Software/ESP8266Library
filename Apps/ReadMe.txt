@@ -1,6 +1,11 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.3.0.1_20250919.tca
+==========================
+Vn 4.3.3.4. Minor update from previous version, protect against unhandled exception when no uSD card present and USB program link in.
+This version does NOT have the HardenIO mods (for Nordural) mereged in from the G120 version.
+
 App_2.3.0.1_20250805.tca
 ==========================
 Vn. 4.3.3.3. Port recent updates from G120 version, including:
