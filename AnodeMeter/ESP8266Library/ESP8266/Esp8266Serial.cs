@@ -16,6 +16,7 @@ using DataReceivedEventArgs = GHIElectronics.TinyCLR.Devices.Uart.DataReceivedEv
 #endif
 
 using PervasiveDigital.Utilities;
+using ThreadPool = PervasiveDigital.Utilities.ThreadPool;
 
 namespace PervasiveDigital.Hardware.ESP8266
 {
@@ -656,14 +657,14 @@ namespace PervasiveDigital.Hardware.ESP8266
 }
 namespace PervasiveDigital.Utilities
 {
-    
-public static class Dbg
+    public static class Dbg
     {
         public static void WriteLine(string message)
         {
 #if MF_FRAMEWORK_VERSION_V4_3
             Microsoft.SPOT.Debug.Print(message);
 #else
+            //Debug.WriteLine(message);
             System.Diagnostics.Debug.WriteLine(message);
 #endif
         }

@@ -21,6 +21,7 @@ using System.Security.Cryptography.X509Certificates;
 
 using PervasiveDigital.Net;
 using PervasiveDigital.Utilities;
+using ThreadPool = PervasiveDigital.Utilities.ThreadPool;
 
 #if TINYCLR
 using SerialPort = GHIElectronics.TinyCLR.Devices.Uart.UartController;
