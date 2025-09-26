@@ -6,7 +6,7 @@ namespace PervasiveDigital.Hardware.ESP8266
     public class FailedExpectException : Exception
     {
         public FailedExpectException(string command, string expected, string actual)
-#if MF_FRAMEWORK
+#if MF_FRAMEWORK || TINYCLR
             : base("Unexpected response to a command")
 #else
             : base(string.Format("Command {0} expected {1} but received {2}", command, expected, actual))
@@ -18,7 +18,7 @@ namespace PervasiveDigital.Hardware.ESP8266
         }
 
         public FailedExpectException(string expected, string actual)
-#if MF_FRAMEWORK
+#if MF_FRAMEWORK || TINYCLR
             : base("Unexpected response to a command")
 #else
             : base(string.Format("Expected {0} but received {1}", expected, actual))

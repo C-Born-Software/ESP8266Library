@@ -1,5 +1,3 @@
-#define MF_FRAMEWORK
-
 using System;
 using System.Collections;
 using System.IO.Ports;
@@ -247,7 +245,7 @@ namespace PervasiveDigital.Hardware.ESP8266
 
                 foreach (var s in accept)
                 {
-#if MF_FRAMEWORK
+#if MF_FRAMEWORK || TINYCLR
                     if (response == "" || string.Equals(response.ToLower(), s.ToLower()))
 #else
                     if (response=="" || string.Equals(response, s, StringComparison.OrdinalIgnoreCase))
@@ -258,7 +256,7 @@ namespace PervasiveDigital.Hardware.ESP8266
                     }
                 }
             } while (acceptableInputFound);
-#if MF_FRAMEWORK
+#if MF_FRAMEWORK || TINYCLR
             if (!string.Equals(response.ToLower(), expect.ToLower()))
 #else
             if (!string.Equals(response, expect, StringComparison.OrdinalIgnoreCase))
@@ -661,11 +659,10 @@ namespace PervasiveDigital.Utilities
     {
         public static void WriteLine(string message)
         {
-#if MF_FRAMEWORK_VERSION_V4_3
+#if MF_FRAMEWORK
             Microsoft.SPOT.Debug.Print(message);
 #else
-            //Debug.WriteLine(message);
-            System.Diagnostics.Debug.WriteLine(message);
+            Debug.WriteLine(message);
 #endif
         }
 
