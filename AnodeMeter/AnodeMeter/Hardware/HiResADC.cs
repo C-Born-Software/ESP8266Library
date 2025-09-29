@@ -1,6 +1,4 @@
 ﻿using System;
-//using Microsoft.SPOT;
-//using Microsoft.SPOT.Hardware;
 using GHIElectronics.TinyCLR.Devices.I2c;
 using GHIElectronics.TinyCLR.Pins;
 
@@ -63,8 +61,6 @@ namespace AnodeMeter.Hardware
         private Int32 _maxValue;
         private double _gainDivisor;
         private I2cDevice _McpAdc = null;
-//        private I2CDevice.I2CTransaction[] _xConfigAction = null;
-//        private I2CDevice.I2CTransaction[] _xReadAction = null;
         private byte[] _configReg = new byte[1];
         private byte[] _dataReg = new byte[5];
 
@@ -75,14 +71,6 @@ namespace AnodeMeter.Hardware
                 var settings = new I2cConnectionSettings(0x68, 400_000);
                 var controller = I2cController.FromName(SC20260.I2cBus.I2c1);
                 _McpAdc = controller.GetDevice(settings);
-
-                //_McpAdc = new I2cDevice(new I2cDevice.Configuration((ushort)(AddressBase + _baseAddressOffset), EmxI2cClock));
-
-                //_xConfigAction = new I2CDevice.I2CTransaction[1];
-                //_xReadAction = new I2CDevice.I2CTransaction[1];
-                //_xConfigAction[0] = I2CDevice.CreateWriteTransaction(_configReg);
-                //_xReadAction[0] = I2CDevice.CreateReadTransaction(_dataReg);
-
             }
 
             double[] lsbValues = new double[] { 0.001, 0.00025, 0.0000625, 0.000015625 };
@@ -107,9 +95,6 @@ namespace AnodeMeter.Hardware
             _configReg[0] |= 0x80; // Queue a conversion (for One-Shot Mode)
 
             _McpAdc.Write(_configReg);
-//            if (_McpAdc.Execute(_xConfigAction, _ReadWriteTimeoutMilliSecs) == 0)
-//                throw new Exception("Error attempting to configure the HiResADC device, zero bytes transferred");
-//            else
             {
                 int[] conversionTimeMilliSecs = new int[4] { 5, 17, 67, 267 };
                 // Block here until enough time has elapsed for the current conversion to have completed
@@ -204,28 +189,36 @@ namespace AnodeMeter.Hardware
         /// <returns>A 2's complement counts value from the ADC</returns>
         public Int32 ReadRawCounts()
         {
-            if (_configDirty)
-                ConfigDevice();
-
-            else if (_chConfig[(int)_inputChannel]._conversionMode == ConversionMode.OneShot)
-                WriteConfigReg();
-
-            Int32 Counts = 0;
-            _McpAdc.Read(_dataReg);
-//            if (_McpAdc.Execute(_xReadAction, _ReadWriteTimeoutMilliSecs) == 0)
-//                throw new Exception("Error attempting to read HiResADC data, zero bytes transferred");
-
-//            else
-            if (_chConfig[(int)_inputChannel]._resolution == Resolution.EighteenBits)
+            try
             {
-                Counts = (((Int32)_dataReg[0]) << 16) + (((Int32)_dataReg[1]) << 8) + (Int32)_dataReg[2];
-            }
-            else
-            {
-                Counts = (((Int32)_dataReg[0]) << 8) + (Int32)_dataReg[1];
-            }
+                if (_configDirty)
+                    ConfigDevice();
 
-            return Counts &= _countsMask;
+                else if (_chConfig[(int)_inputChannel]._conversionMode == ConversionMode.OneShot)
+                    WriteConfigReg();
+
+                Int32 Counts = 0;
+                _McpAdc.Read(_dataReg);
+
+                if (_chConfig[(int)_inputChannel]._resolution == Resolution.EighteenBits)
+                {
+                    Counts = (((Int32)_dataReg[0]) << 16) + (((Int32)_dataReg[1]) << 8) + (Int32)_dataReg[2];
+                }
+                else
+                {
+                    Counts = (((Int32)_dataReg[0]) << 8) + (Int32)_dataReg[1];
+                }
+
+                return Counts &= _countsMask;
+            }
+            catch (System.IO.IOException)
+            {
+                // An I/O exception occurred, likely due to a bus error (e.g., NACK).
+                // Reset our internal state to force re-initialization on the next call.
+                Reset();
+                // Re-throw the exception to let the caller know the operation failed.
+                throw;
+            }
         }
     }
 }
