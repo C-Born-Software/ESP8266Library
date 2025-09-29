@@ -82,8 +82,8 @@
     <Reference Include="GHIElectronics.TinyCLR.Networking, Version=2.3.0.1000, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\GHIElectronics.TinyCLR.Networking.2.3.0.1000\lib\net48\GHIElectronics.TinyCLR.Networking.dll</HintPath>
     </Reference>
-    <Reference Include="GHIElectronics.TinyCLR.Pins, Version=2.3.0.1000, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\GHIElectronics.TinyCLR.Pins.2.3.0.1000\lib\net48\GHIElectronics.TinyCLR.Pins.dll</HintPath>
+    <Reference Include="GHIElectronics.TinyCLR.Pins, Version=2.3.0.2000, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\GHIElectronics.TinyCLR.Pins.2.3.0.2000\lib\net48\GHIElectronics.TinyCLR.Pins.dll</HintPath>
     </Reference>
     <Reference Include="GHIElectronics.TinyCLR.Update, Version=2.3.0.1000, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\GHIElectronics.TinyCLR.Update.2.3.0.1000\lib\net48\GHIElectronics.TinyCLR.Update.dll</HintPath>
