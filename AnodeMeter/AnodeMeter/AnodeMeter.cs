@@ -434,8 +434,6 @@ namespace AnodeMeter
             _sp = new SignalProcessor();
         }
 
-
-
         internal void Run()
         {
             bool failed = false;
@@ -2806,7 +2804,28 @@ namespace AnodeMeter
                 Logging.IssueEvent(Logging.ErrSeverity.Severe, "AnodeMeter::ProcessAnode", "Error Processing Anode. Reason: " + ex.Message + "; StackTrace: " + ex.StackTrace, "Software Err!");
             }
         }
-
+#if false
+        public static string ToMtString(this MeasurementType Arg)
+        {
+            string measType = "";
+            switch (Arg)
+            {
+                case MeasurementType.ClampDrop: measType = "C"; break;
+                case MeasurementType.RodDrop: measType = "R"; break;
+            }
+            return measType;
+        }
+#endif
+        private string MtString(MeasurementType Arg)
+        {
+            string measType = "";
+            switch (Arg)
+            {
+                case MeasurementType.ClampDrop: measType = "C"; break;
+                case MeasurementType.RodDrop: measType = "R"; break;
+            }
+            return measType;
+        }
         private void DisplayMeteringInfo(Schedule.AnodeSched ASchedule)
         {
 
@@ -2817,7 +2836,8 @@ namespace AnodeMeter
                 _lcd.MoveIntoDisplay(_CurrentAnode._potName, CurrentPotPosition);
                 _lcd.MoveIntoDisplay(":", CurrentPotAnodeSeparatorPosition);
                 _lcd.MoveIntoDisplay(_CurrentAnode._AnodePos.ToString(), CurrentAnodeNumberPosition);
-                _lcd.MoveIntoDisplay(_CurrentAnode._measType.ToMtString(), CurrentMeteringTypePosition);
+                //_lcd.MoveIntoDisplay(_CurrentAnode._measType.ToMtString(), CurrentMeteringTypePosition);
+                _lcd.MoveIntoDisplay(MtString(_CurrentAnode._measType), CurrentMeteringTypePosition);
 
                 DisplayLastThreeReadings();
             }

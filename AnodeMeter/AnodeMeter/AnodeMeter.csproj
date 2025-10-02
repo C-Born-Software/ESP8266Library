@@ -47,7 +47,6 @@
     <Compile Include="Common\BinaryTransport.cs" />
     <Compile Include="Common\CommonDefinitions.cs" />
     <Compile Include="Common\DataStore.cs" />
-    <Compile Include="Common\Extensions.cs" />
     <Compile Include="Common\LcdDisplay.cs" />
     <Compile Include="Common\LED.cs" />
     <Compile Include="Common\Logging.cs" />
@@ -75,6 +74,10 @@
     <Compile Include="Common\SmelterDetails.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\AnodeMeter.Extensions\AnodeMeter.Extensions.csproj">
+      <Project>{04151283-B0AD-4E13-ABBA-DC55D5F93891}</Project>
+      <Name>AnodeMeter.Extensions</Name>
+    </ProjectReference>
     <ProjectReference Include="..\ESP8266Library\ESP8266Library.csproj">
       <Project>{BE29B5BF-549D-4759-8063-1215C04D358F}</Project>
       <Name>ESP8266Library</Name>

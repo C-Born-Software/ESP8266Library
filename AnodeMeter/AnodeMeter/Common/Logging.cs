@@ -156,5 +156,7 @@ namespace AnodeMeter.Common
             }
             catch { }
         }
+        public static void DbgWrite(string s) { Debug.WriteLine(s); }
     }
-}
+
+    }

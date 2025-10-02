@@ -267,6 +267,8 @@ namespace AnodeMeter.Common
             }
             return fName;
         }
+
+#if false
         public static string ToMtString(this MeasurementType Arg)
         {
             string measType = "";
@@ -277,6 +279,7 @@ namespace AnodeMeter.Common
             }
             return measType;
         }
+#endif
         public static void Quicksort(IComparable[] elements, int left, int right)
         {
             int i = left, j = right;

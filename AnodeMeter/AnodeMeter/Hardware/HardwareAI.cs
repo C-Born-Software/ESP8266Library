@@ -6,9 +6,12 @@ namespace AnodeMeter.Hardware
 {
     class HardwareAI : AnalogInput, IDisposable
     {
+        public event EventHandler StallDetected;
+
         private const double _lowValueThreshold = 0.001;
         private HiResADC _ai = null;
         private Thread _scanInputThread = null;
+        private Thread _watchdogThread = null;
         private bool _exitThread = false;
         //private int _successiveCountsInErrorRange;
         private DateTime _dtLastBatteryVoltageCheck;
@@ -18,13 +21,71 @@ namespace AnodeMeter.Hardware
         // With a 70ms scan timer, we need about 857 ticks for a ~60-second backoff (60000 / 70)
         private const int BACKOFF_RECOVERY_ATTEMPT_TICKS = 60000 / GlobalConsts.HARDWARE_AI_SCAN_MILLI_SECONDS;
 
+        // --- Stuck Reading Detection ---
+        private const int MAX_IDENTICAL_READINGS = 42;
+        private double _lastReading = double.MinValue;
+        private int _identicalReadingCount = 0;
+        private bool _ignoreNextReadingAfterReset = false;
+
+        /// <summary>
+        /// A simple counter incremented on every successful scan loop. An external watchdog can monitor this for changes.
+        /// </summary>
+        public int HeartbeatCounter { get; private set; }
+
+
         public HardwareAI()
         {
+            HeartbeatCounter = 0;
             _scanInputThread = new Thread(ScanInputLoop);
             _scanInputThread.Priority = ThreadPriority.BelowNormal;
             _scanInputThread.Start();
+
+            _watchdogThread = new Thread(WatchdogLoop);
+            _watchdogThread.Priority = ThreadPriority.Highest;
+            _watchdogThread.Start();
+
             // _successiveCountsInErrorRange = 0;
             _dtLastBatteryVoltageCheck = DateTime.MinValue;
+        }
+
+        /// <summary>
+        /// A high-priority watchdog thread that monitors the liveness of the ScanInputLoop.
+        /// If the HeartbeatCounter stops incrementing, it means the scan thread is stalled,
+        /// and this watchdog will force a system reboot.
+        /// </summary>
+        private void WatchdogLoop()
+        {
+            long lastSeenHeartbeat = -1;
+            // The number of checks to fail before rebooting. 3 checks * 2s interval = 6s timeout.
+            const int failureThreshold = 3;
+            int failureCount = 0;
+
+            while (!_exitThread)
+            {
+                Thread.Sleep(2000); // Check every 2 seconds
+
+                long currentHeartbeat = this.HeartbeatCounter;
+
+                if (currentHeartbeat == lastSeenHeartbeat)
+                {
+                    failureCount++;
+                    if (failureCount >= failureThreshold)
+                    {
+                        // Raise the stall detected event. The subscriber is responsible for saving state and rebooting.
+                        StallDetected?.Invoke(this, EventArgs.Empty);
+
+                        // As a fallback, if no subscriber reboots the device within a few seconds, do it ourselves.
+                        Thread.Sleep(4000);
+                        GHIElectronics.TinyCLR.Native.Power.Reset();
+                    }
+                }
+                else
+                {
+                    // The thread is alive, update our last seen value and reset the failure counter.
+                    lastSeenHeartbeat = currentHeartbeat;
+                    failureCount = 0;
+                }
+            }
         }
 
         private void ScanInputLoop()
@@ -61,11 +122,55 @@ namespace AnodeMeter.Hardware
                     }
 
                     double ThisValue = _ai.ReadVolts(HiResADC.InputChannel.Ch1);
+
+                    //TODO DAV DEBUG Test - simulate frozen read for debugging
+                    if (ThisValue > 1.0)
+                    {
+                        for (int i = 0; i < 10; i++)
+                        {
+                            Thread.Sleep(1000);
+                        }
+                    }
+
+                    // If the ignore flag is set, discard this reading and continue.
+                    if (_ignoreNextReadingAfterReset)
+                    {
+                        _ignoreNextReadingAfterReset = false;
+                        _lastReading = ThisValue; // Prime the last reading with this discarded value.
+                        continue;
+                    }
+
                     // Successful read, reset the error counter.
                     _errorCount = 0;
 
+                    // --- Stuck Reading Detection Logic ---
+                    if (ThisValue == _lastReading)
+                    {
+                        _identicalReadingCount++;
+                    }
+                    else
+                    {
+                        _lastReading = ThisValue;
+                        _identicalReadingCount = 0;
+                    }
+
+                    if (_identicalReadingCount > MAX_IDENTICAL_READINGS)
+                    {
+                        Logging.DbgWrite("HardwareAI: Reset ADC");
+                        //Logging.IssueEvent(Logging.ErrSeverity.Warning, "HardwareAI::ScanInputLoop", "Stuck ADC reading detected. Resetting ADC.", "AI Stuck");
+                        _ai.Reset();
+                        _identicalReadingCount = 0; // Reset counter after action
+                        _ignoreNextReadingAfterReset = true; // Set flag to ignore the next reading
+                        continue; // Skip processing this stuck value
+                    }
+                    // --- End of Stuck Reading Detection ---
+
                     AnalogInputEventArg e1 = new AnalogInputEventArg(ThisValue);
                     base.OnAnalogValueRead(e1);
+
+                    // --- Update Heartbeat ---
+                    // This indicates a successful, non-stalled loop completion.
+                    this.HeartbeatCounter++;
                 }
                 catch (System.IO.IOException x)
                 {
@@ -106,6 +211,11 @@ namespace AnodeMeter.Hardware
                 // Wait up to 1 second for the thread to gracefully terminate.
                 _scanInputThread.Join(1000);
                 _scanInputThread = null;
+            }
+            if (_watchdogThread != null)
+            {
+                _watchdogThread.Join(1000);
+                _watchdogThread = null;
             }
 
             if (_ai != null)

@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnodeMeter", "AnodeMeter\An
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ESP8266Library", "ESP8266Library\ESP8266Library.csproj", "{BE29B5BF-549D-4759-8063-1215C04D358F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnodeMeter.Extensions", "AnodeMeter.Extensions\AnodeMeter.Extensions.csproj", "{04151283-B0AD-4E13-ABBA-DC55D5F93891}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,6 +25,10 @@ Global
 		{BE29B5BF-549D-4759-8063-1215C04D358F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BE29B5BF-549D-4759-8063-1215C04D358F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BE29B5BF-549D-4759-8063-1215C04D358F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{04151283-B0AD-4E13-ABBA-DC55D5F93891}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{04151283-B0AD-4E13-ABBA-DC55D5F93891}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{04151283-B0AD-4E13-ABBA-DC55D5F93891}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{04151283-B0AD-4E13-ABBA-DC55D5F93891}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
