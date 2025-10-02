@@ -72,11 +72,11 @@ namespace AnodeMeter.Hardware
                     if (failureCount >= failureThreshold)
                     {
                         // Raise the stall detected event. The subscriber is responsible for saving state and rebooting.
-                        StallDetected?.Invoke(this, EventArgs.Empty);
+                        //StallDetected?.Invoke(this, EventArgs.Empty);
 
                         // As a fallback, if no subscriber reboots the device within a few seconds, do it ourselves.
                         Thread.Sleep(4000);
-                        GHIElectronics.TinyCLR.Native.Power.Reset();
+                        //GHIElectronics.TinyCLR.Native.Power.Reset();
                     }
                 }
                 else
