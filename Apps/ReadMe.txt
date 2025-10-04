@@ -1,6 +1,14 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.3.0.3_20251005.tca
+==========================
+Vn 4.3.4.1. This version contains extensive Analog Input Hardening modifications, specifically for Nordural
+It attempts to detect stuck ADC converter device and tries to unstick it.
+If the main Analog Input loop becomes wedged (eg I2C lock) it tries to save the current context to RTC BB RAM, reset, and recover the context.
+This required major changes in last minute before trip to Iceland, so can be considered untested/Alpha
+Changes are on a separate branch, HardenIO
+
 App_2.3.0.1_20250919.tca
 ==========================
 Vn 4.3.3.4. Minor update from previous version, protect against unhandled exception when no uSD card present and USB program link in.
