@@ -34,8 +34,12 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Extensions.cs" />
+    <Compile Include="../AnodeMeter/Common/Extensions.cs" />
+    <Compile Include="PotMeasurementRecord.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="../AnodeMeter/Common/Schedule.cs" />
+    <Compile Include="../AnodeMeter/Common/SmelterDetails.cs" />
+    <Compile Include="SmelterDetailsInitResult.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -44,6 +48,12 @@
     <Reference Include="GHIElectronics.TinyCLR.Data.Xml, Version=2.3.0.1000, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\GHIElectronics.TinyCLR.Data.Xml.2.3.0.1000\lib\net48\GHIElectronics.TinyCLR.Data.Xml.dll</HintPath>
     </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ESP8266Library\ESP8266Library.csproj">
+      <Project>{BE29B5BF-549D-4759-8063-1215C04D358F}</Project>
+      <Name>ESP8266Library</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

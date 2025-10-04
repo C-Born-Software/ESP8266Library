@@ -4,9 +4,12 @@ using AnodeMeter.Common;
 
 namespace AnodeMeter.Hardware
 {
+    // Define a specific delegate for the StallDetected event.
+    public delegate void StallDetectedEventHandler(object sender, EventArgs e);
+
     class HardwareAI : AnalogInput, IDisposable
     {
-        public event EventHandler StallDetected;
+        public event StallDetectedEventHandler StallDetected;
 
         private const double _lowValueThreshold = 0.001;
         private HiResADC _ai = null;
@@ -72,7 +75,7 @@ namespace AnodeMeter.Hardware
                     if (failureCount >= failureThreshold)
                     {
                         // Raise the stall detected event. The subscriber is responsible for saving state and rebooting.
-                        //StallDetected?.Invoke(this, EventArgs.Empty);
+                        StallDetected?.Invoke(this, EventArgs.Empty);
 
                         // As a fallback, if no subscriber reboots the device within a few seconds, do it ourselves.
                         Thread.Sleep(4000);
@@ -122,16 +125,17 @@ namespace AnodeMeter.Hardware
                     }
 
                     double ThisValue = _ai.ReadVolts(HiResADC.InputChannel.Ch1);
-
+#if false
                     //TODO DAV DEBUG Test - simulate frozen read for debugging
-                    if (ThisValue > 1.0)
-                    {
+#warning //TODO DAV DEBUG Test - simulate frozen read for debugging
+                    if (ThisValue < 0.001) 
+                    { 
                         for (int i = 0; i < 10; i++)
                         {
                             Thread.Sleep(1000);
                         }
                     }
-
+#endif
                     // If the ignore flag is set, discard this reading and continue.
                     if (_ignoreNextReadingAfterReset)
                     {

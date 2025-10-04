@@ -1,14 +1,14 @@
 ﻿using System;
 using System.IO;
-//using Microsoft.SPOT;
 using System.Collections;
 using GHIElectronics.TinyCLR.Data.Xml;
-//using System.Xml;
+using PervasiveDigital.Utilities;
 
 namespace AnodeMeter.Common
 {
     public class SmelterDetails
     {
+        public static LogActionDelegate LogAction;
         // Enumerate the 8 ways to traverse a pot when metering
         public enum AnodeOrderRule
         {
@@ -220,11 +220,11 @@ namespace AnodeMeter.Common
         }
         private Hashtable _potInfo;
         // Initialise the Plant Details object from the xml-text stream
-        public bool Init(Stream s)
+        public SmelterDetailsInitResult Init(Stream s)
         {
+            var result = new SmelterDetailsInitResult();
             XmlReader xml = null;
-            Stack stk;
-            bool bParsedOK = true;
+            Stack stk;;
 
             try
             {
@@ -262,10 +262,10 @@ namespace AnodeMeter.Common
                         {
                             _locationTag = xml.ReadAttributeString("LocationTag");
                             if (_locationTag == "PTD")
-                                Globals.MaskT4 = true;
-                            _tsShiftLen = new TimeSpan((long)xml.ReadAttributeValue("WorkShiftHours") * TimeSpan.TicksPerHour);
-                            _tsFirstShiftOffset = new TimeSpan((long)xml.ReadAttributeValue("FirstShiftStartMinutes") * TimeSpan.TicksPerMinute);
-                            _defaultLine = xml.ReadAttributeString("DefaultLineName");
+                                result.MaskT4 = true;
+                            result.ShiftLength = new TimeSpan((long)xml.ReadAttributeValue("WorkShiftHours") * TimeSpan.TicksPerHour);
+                            result.FirstShiftOffset = new TimeSpan((long)xml.ReadAttributeValue("FirstShiftStartMinutes") * TimeSpan.TicksPerMinute);
+                            result.DefaultLine = xml.ReadAttributeString("DefaultLineName");
                             bPlantConfigFound = true;
                         }
                     }
@@ -374,6 +374,11 @@ namespace AnodeMeter.Common
                     // Create the lookup-details-by-pot-number hashtable
                     _potInfo = new Hashtable(PotCount);
                     _lines = (PotlineDetails[])Lines.ToArray(typeof(PotlineDetails));
+
+                    _tsShiftLen = result.ShiftLength;
+                    _tsFirstShiftOffset = result.FirstShiftOffset;
+                    _defaultLine = result.DefaultLine;
+
                     PotDetails pot = null;
                     postXmlParseHouseKeeping();
 
@@ -454,16 +459,21 @@ namespace AnodeMeter.Common
                         }
                     }
                 }
+                result.Success = true;
             }
             catch (Exception ex)
             {
                 if (xml != null)
                     xml.Close();
+                
+                result.Success = false;
+                if (LogAction != null)
+                    LogAction(2, "SmelterDetails::Init", "xml Parsing Exception (Check XML Config-Document for errors): " + ex.Message, "xml Parse err.");
 
-                bParsedOK = false;
-                Logging.IssueEvent(Logging.ErrSeverity.Severe, "SmelterDetails::Init", "xml Parsing Exception (Check XML Config-Document for errors): " + ex.Message, "xml Parse err.");
+                //bParsedOK = false;
+                //Logging.IssueEvent(Logging.ErrSeverity.Severe, "SmelterDetails::Init", "xml Parsing Exception (Check XML Config-Document for errors): " + ex.Message, "xml Parse err.");
             }
-            return bParsedOK;
+            return result;
         }
 
 
@@ -512,6 +522,9 @@ namespace AnodeMeter.Common
             return ln;
         }
 
+        // LARGE_OUTLIER_CLAMPDROP_THRESH is defined in GlobalConsts
+        // We don't have access to that, could pass it in, but define locally for now. DAV 4OCT2025
+        private const double LARGE_OUTLIER_CLAMPDROP_THRESH = 0.05;
         public bool ImplausibleMeasurement(string Pot, double ADrop, bool isRodDrop)
         {
             bool bOK = false;
@@ -522,7 +535,7 @@ namespace AnodeMeter.Common
             if (isRodDrop)
                 bOK = ADrop / 2 > nominalVDrop || ADrop * 2.5 < nominalVDrop;
             else
-                bOK = ADrop.Abs() > GlobalConsts.LARGE_OUTLIER_CLAMPDROP_THRESH || ADrop.Abs() * 2.5 < nominalVDrop;
+                bOK = ADrop.Abs() > LARGE_OUTLIER_CLAMPDROP_THRESH || ADrop.Abs() * 2.5 < nominalVDrop;
 
             return bOK;
         }
@@ -779,6 +792,7 @@ namespace AnodeMeter.Common
             }
             return maxPotLength;
         }
+
         private void postXmlParseHouseKeeping()
         {
             int maxPotNameLength = GetMaxPotNameLength();
@@ -804,5 +818,32 @@ namespace AnodeMeter.Common
                 }
             }
         }
+#if false
+        private void postXmlParseHouseKeeping()
+        {
+            int maxPotNameLength = GetMaxPotNameLength();
+            string thisPotname;
+            char paddingChar = '0';
+
+            for (int iLn = 0; iLn < _lines.Length; iLn++)
+            {
+                for (int room = 0; room < _lines[iLn]._rooms.Length; room++)
+                {
+                    foreach (PotlineDetails.Room.MeteringSection sectn in _lines[iLn]._rooms[room]._Sections)
+                    {
+                        for (int iPot = 0; iPot < sectn._Pots.Count; iPot++)
+                        {
+                            thisPotname = (string)sectn._Pots[iPot];
+                            if (thisPotname.Length < maxPotNameLength)
+                            {
+                                thisPotname = new string(paddingChar, maxPotNameLength - thisPotname.Length) + thisPotname;
+                                sectn._Pots[iPot] = thisPotname;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+#endif
     }
 }

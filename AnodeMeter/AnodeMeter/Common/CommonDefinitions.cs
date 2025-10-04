@@ -7,7 +7,7 @@ namespace AnodeMeter
 {
     public enum AnodeMeterType { EMULATOR, TOPAZ, GHI };
     public enum MeasModeOption { RodDrop, ClampDrop, RodThenClamp, ClampThenRod };
-    public enum MeasurementType { RodDrop, ClampDrop };
+    //public enum MeasurementType { RodDrop, ClampDrop };
     public enum SpecialLCDCharacters : byte { batteryMt = 1, batteryQuart = 2, batteryHalf = 3, battery3Quart = 4, batteryFull = 5, Tick = 6, Down = 7 };
 
     public static class SpecialLCDCharacter

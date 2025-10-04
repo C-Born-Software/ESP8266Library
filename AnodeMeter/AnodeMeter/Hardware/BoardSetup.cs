@@ -76,7 +76,7 @@ namespace AnodeMeter
 
         public enum ShutdownCode : byte
         {
-            Unknown = 0, UserMenu, UserButton, LowBattery, CritBattery, ReConfig, MemExtend, ChangeMode, AutoOff,
+            Unknown = 0, UserMenu, UserButton, LowBattery, CritBattery, ReConfig, MemExtend, ChangeMode, AutoOff,AIStall,
             Running = 100, Sleeping, RunFail
         }
 
@@ -109,6 +109,9 @@ namespace AnodeMeter
                 case ShutdownCode.AutoOff:
                     s = "AutoOff";
                     break;
+                case ShutdownCode.AIStall:
+                    s = "AIStall";
+                    break;
                 case ShutdownCode.Running:
                     s = "Running";
                     break;
@@ -133,28 +136,16 @@ namespace AnodeMeter
 
         public static uint GetShutdownCode()
         {
-            var readData = BoardSetup.ReadBBRam();
-            if((readData == null) || readData.Length < 2)
-                return 0;
-            return readData[1];
+            return BBRam.GetShutdownCode();
         }
 
         public static void SetShutdownCode(ShutdownCode sc)
         {
-            SetShutdownCode((uint)sc);
+            BBRam.SetShutdownCode((uint)sc);
         }
         public static void SetShutdownCode(uint code)
         {
-            var readData = BoardSetup.ReadBBRam();
-            if (readData == null || readData.Length < 2)
-            {
-                byte startFlags = (readData != null && readData.Length >= 1) ? readData[0] : (byte)0;
-                readData = new byte[2];
-                readData[0] = startFlags;
-            }
-
-            readData[1] = (byte)code;
-            BoardSetup.WriteBBRam(readData);
+            BBRam.SetShutdownCode(code);
         }
     }
 }
@@ -189,7 +180,7 @@ namespace AnodeMeter.Hardware
             setTopLevel = 0, setBackLight, setGreenLED, setRedLED, setLCDBias, setClock, setMeasMode, setLogRawData, setWiFi, setWifiDebug, setWifiVerbose, setRebootToMS, /* setKeepSchedule, */ setSave, setLoad, setAutoScan = 100,
             infoTopLevel = 0, infoBatt, infoInput, infoFirmware, infoBuiltOn, infoSDCard, infoSerial, infoUID, infoTemperature,
             modeTopLevel = 0, modeDiskDrive = 2,
-            supportTopLevel = 0, supportPowerOff,supportHibernate, supportBattTest, supportIFU, supportEraseID, supportWifiTest, supporSetSerial = 100,
+            supportTopLevel = 0, supportPowerOff, supportHibernate, supportBattTest, supportIFU, supportEraseID, supportWifiTest, supporSetSerial = 100,
             wifiTopLevel = 0, wifiStatus, wifiInfo, wifiScan, wifiTop, wifiTest, wifiSpeedTest,
             exitTopLevel = 0
         };
@@ -224,7 +215,8 @@ namespace AnodeMeter.Hardware
 
         private void BoardSetupWorker()
         {
-            try {
+            try
+            {
 #if false
             // Battery Voltage x 0.5 (divider on input) 10 bit (0-1023) ADC, full scale 3.3V 
             AnalogIn VBatt = new AnalogIn(AnalogIn.Pin.Ain1);
@@ -712,13 +704,14 @@ namespace AnodeMeter.Hardware
                                             PrintScreen("DiskDrive Mode", "Connect ?  " + SpecialLCDCharacter.Tick);
                                             if (CentreButton.click)
                                             {
-                                                if (Globals.RebootToMS) {
+                                                if (Globals.RebootToMS)
+                                                {
                                                     PrintScreen("Rebooting to", "DiskDrive Mode");
                                                     Thread.Sleep(1000);
                                                     RebootToMs();   // TODO Fix  - Shouldn't get past here. But hopefully can remove this when GHI fixes firmware!
                                                 }
                                                 else
-                                                { 
+                                                {
                                                     PrintScreen("Switching to", "DiskDrive Mode");
                                                 }
                                                 Thread.Sleep(1000);
@@ -741,13 +734,13 @@ namespace AnodeMeter.Hardware
                                             }
 
                                             PrintScreen("DiskDrive Mode", "Disconnect?  " + SpecialLCDCharacter.Tick);
-                                            ushort clicks=0;
+                                            ushort clicks = 0;
                                             CentreButton.ClickedSince(ref clicks);
                                             //while (ms.DeviceState == DeviceState.Configured)
                                             DeviceState ds = ms.DeviceState;
-                                            while(true)
+                                            while (true)
                                             {
-                                                if(ms.DeviceState != ds)
+                                                if (ms.DeviceState != ds)
                                                 {
                                                     Debug.WriteLine("DeviceState changed from " + GetEnumName(ds) + " to " + GetEnumName(ms.DeviceState));
                                                     ds = ms.DeviceState;
@@ -765,7 +758,7 @@ namespace AnodeMeter.Hardware
                                             Debug.WriteLine("Resuming because state = " + GetEnumName(ms.DeviceState));
                                             Thread.Sleep(1000);
 
-                                            if(Globals.RebootToMS) 
+                                            if (Globals.RebootToMS)
                                                 RebootToWinUSB();
 
                                             DiskDriveMode(false);
@@ -774,7 +767,7 @@ namespace AnodeMeter.Hardware
                                             Thread.Sleep(1000);
 
                                             //RebootToNormal(); // TODO Fix once GHI fixed firmware
-                                            
+
                                             MenuItem = 0;
                                             MenuStep = 0;
                                             break;
@@ -832,8 +825,8 @@ namespace AnodeMeter.Hardware
                                         }
                                         break;
                                     case MenuItems.supportHibernate: // Test hibernate
-                                        
-                                        PrintScreen("Test Hibernate", SpecialLCDCharacter.Tick + " (" + HiberSecs + "s)" );
+
+                                        PrintScreen("Test Hibernate", SpecialLCDCharacter.Tick + " (" + HiberSecs + "s)");
                                         if (CentreButton.click)
                                         {
                                             PrintScreen("Sleeping...", " (" + HiberSecs + "s)");
@@ -845,12 +838,12 @@ namespace AnodeMeter.Hardware
                                             Thread.Sleep(1000);
                                             break;
                                         }
-                                        if(RightButton.click)
+                                        if (RightButton.click)
                                         {
-                                            if ((HiberSecs+=10) > 300)
+                                            if ((HiberSecs += 10) > 300)
                                                 HiberSecs = 300;
                                         }
-                                        if(LeftButton.click)
+                                        if (LeftButton.click)
                                         {
                                             if ((HiberSecs -= 10) < 5)
                                                 HiberSecs = 5;
@@ -908,7 +901,8 @@ namespace AnodeMeter.Hardware
                                                     MenuStep = 0;
                                                     break;
                                                 }
-                                                if (flist.Length == 1) {
+                                                if (flist.Length == 1)
+                                                {
                                                     FieldUpdate.CheckForUpdate(flist[0]);
                                                     ++MenuStep;
                                                 }
@@ -1035,18 +1029,18 @@ namespace AnodeMeter.Hardware
                                                 break;
                                         }
                                         break;
-                                        
-                                        /* -- Not currently required/enabled - DAV
-                                    case MenuItems.supportWifiTest:      // Try some Wifi tests - for now requeue config check
-                                        PrintScreen("WiFi Test", SpecialLCDCharacter.Tick);
-                                        if (CentreButton.click)
-                                        {
-                                            _am.TriggerConfigCheck();
-                                            MenuItem = 0;
-                                            MenuStep = 0;
-                                        }
-                                        break;
-                                        */
+
+                                    /* -- Not currently required/enabled - DAV
+                                case MenuItems.supportWifiTest:      // Try some Wifi tests - for now requeue config check
+                                    PrintScreen("WiFi Test", SpecialLCDCharacter.Tick);
+                                    if (CentreButton.click)
+                                    {
+                                        _am.TriggerConfigCheck();
+                                        MenuItem = 0;
+                                        MenuStep = 0;
+                                    }
+                                    break;
+                                    */
                                     case MenuItems.supporSetSerial:   // Set serial number. "Hidden" option, to enter hold right arrow instead of left from previous option
                                         PrintScreen("Set Serial No. ?", "");
                                         if (CentreButton.click)
@@ -1248,14 +1242,14 @@ namespace AnodeMeter.Hardware
                                         PrintScreen("WiFi Speed Test", SpecialLCDCharacter.Tick);
                                         Globals.WifiTestMode = Globals.WifiScanMode = false;
                                         switch (Globals.WifiSpeedTestMode)
-                                        {                                      
+                                        {
                                             case Globals.SpeedTestModes.idle:
                                                 if (CentreButton.click)
                                                 {
                                                     Globals.WifiSpeedTestMode = Globals.SpeedTestModes.requested;
                                                     WaitSecs = Globals.RefTimer + 15;
                                                 }
-                                                break;    
+                                                break;
                                             case Globals.SpeedTestModes.requested:
                                                 if (_gw_wifi != null)
                                                     _gw_wifi.SetWifi(BinaryTransport.WifiStates.Connected);
@@ -1269,7 +1263,7 @@ namespace AnodeMeter.Hardware
                                             case Globals.SpeedTestModes.running:
                                                 PrintScreen($"RSSI : {Globals.CurrentRSSI}", "Testing...");
                                                 break;
-                                                    
+
                                             case Globals.SpeedTestModes.completed:
                                                 string res = Globals.BounceTestPassed ? "Pass" : "Fail";
                                                 //PrintScreen("RSSI: " + Globals.CurrentRSSI, "Speed: " + Globals.SpeedTestBPS + "bps");
@@ -1288,7 +1282,7 @@ namespace AnodeMeter.Hardware
                                                 Globals.WifiSpeedTestMode = Globals.SpeedTestModes.idle;
                                                 break;
 
-                                        }                                      
+                                        }
                                         break;
                                     default:
                                         MenuItem = 0;
@@ -1322,14 +1316,16 @@ namespace AnodeMeter.Hardware
                     Thread.Sleep(100);
                 }
             }
-            catch (Exception e) {
+            catch (Exception e)
+            {
                 Debug.WriteLine("BoardCheck Error: " + e.Message);
                 PrintScreen("BoardCheck Error", "");
                 Thread.Sleep(1000);
                 MenuType = MenuTypes.Settings;
                 MenuItem = MenuItems.setTopLevel;
                 MenuStep = 0;
-            };
+            }
+            ;
         }
         /*====== End BoardSetupWorker() =======*/
 
@@ -1409,15 +1405,15 @@ namespace AnodeMeter.Hardware
 #endif
         // =================End Wifi Test =====================
         static UsbClientController usbclientController;
-        static MassStorage ms  = null;
+        static MassStorage ms = null;
         static StorageController sd = null;
         static bool LastReqState = false;   // Consider making the DiskDriveMode method static and adding this to it...
         public static void DiskDriveMode(bool on)
         {
-            
+
             if (on == LastReqState) return;
 
-        if (on)
+            if (on)
             {
                 bool success = false;
                 try
@@ -1459,7 +1455,7 @@ namespace AnodeMeter.Hardware
                         _ds.Lock(false); // cleanup if StartMs failed
                         _gw_usb.Resume(); // resume USB if you suspended
                     }
-                    else                     
+                    else
                     {
                         LastReqState = true; // Set the state to on
                         Debug.WriteLine("Mass Storage Started");
@@ -1527,7 +1523,7 @@ namespace AnodeMeter.Hardware
             ms.Dispose();
             ms = null;
             Thread.Sleep(1000);
-            if(usbclientController != null)
+            if (usbclientController != null)
             {
                 try { usbclientController.Dispose(); }
                 catch { }
@@ -1728,7 +1724,7 @@ namespace AnodeMeter.Hardware
                 UpdateOrAdd(ref Records, "WifiVerbose", (Globals.WifiVerbose ? 1 : 0).ToString(), ref extras);
                 UpdateOrAdd(ref Records, "WifiModes", Globals.WifiModes.ToString(), ref extras);
                 UpdateOrAdd(ref Records, "RebootToMS", (Globals.RebootToMS ? 1 : 0).ToString(), ref extras);
-//                UpdateOrAdd(ref Records, "KeepSchedule", (Globals.KeepSchedule ? 1 : 0).ToString(), ref extras);
+                //                UpdateOrAdd(ref Records, "KeepSchedule", (Globals.KeepSchedule ? 1 : 0).ToString(), ref extras);
 
                 if (Globals.SleepOverride)
                 {
@@ -1818,7 +1814,7 @@ namespace AnodeMeter.Hardware
             _gw_wifi = gw_wifi;
             _am = am;
 
-             //UsbController = UsbClientController.GetDefault();
+            //UsbController = UsbClientController.GetDefault();
 
             HardwareButton[] Buttons = _amb.GetButtons();
             UpButton = Buttons[0];
@@ -1920,105 +1916,17 @@ namespace AnodeMeter.Hardware
             return buildDateTime;
         }
 #endif
-/* ==================== Workarounds for MassStorage needing reset after WinUSB on some PCs =======================
- * 
- *  Hopefully will be fixed in future SDK releases!
- *  
- *  The Battery Backed memory stuff here could be useful anyway...
- */
+        /* ==================== Workarounds for MassStorage needing reset after WinUSB on some PCs =======================
+         * 
+         *  Hopefully will be fixed in future SDK releases!
+         *  
+         *  The Battery Backed memory stuff here could be useful anyway...
+         */
 #if true // Not needed now GHI has fixed firmware (Back in as fix didn't work for all PCs - DAV 14JAN2024)
-        // enum for startup flags. 0 = normal (USB), 1 = Mass Storage, 2 = WinUSB
-        enum StartFlags : byte
-        {
-            Normal = 0,
-            MassStorage = 1,
-            WinUSB = 2
-        }
-        // Startup flags - use CRC16 protected structure ASAP
-        // Save startup flags in BB Ram
-        static void SetBBStartFlags(StartFlags flags)
-        {
-            var data = ReadBBRam();
-            if(data == null || data.Length < 1)
-                data = new byte[1];
-            data[0] = (byte)flags;
-            WriteBBRam(data);
-        }
-        // Get startup flags from BB Ram
-        static StartFlags GetBBStartFlags()
-        {
-            byte[] data = ReadBBRam();
-            Debug.WriteLine("BB Ram: " + ((data == null) ? "null" : data.Length.ToString()));
-            if (data == null)
-                return StartFlags.Normal;
-            return (StartFlags)data[0]; // 1st byte of data
-        }
-        const ushort MaxBBData = 100; // Could use  rtc.BackupMemorySize() for this. Later...
-        const ushort MinBBData = 5; // 2 bytes for length, 2 bytes for CRC, at least 1 data byte
-
-        // Read BB Ram according to header size, and validate CRC. Return as byte array if valid, null (or zero size array?) if not
-        public static byte[] ReadBBRam()
-        {
-            var rtc = RtcController.GetDefault();
-
-            // Read header (2-byte length)
-            var header = new byte[2];
-            rtc.ReadBackupMemory(header, 0);
-            ushort totalLength = BitConverter.ToUInt16(header, 0);
-
-            if (totalLength < MinBBData || totalLength > MaxBBData)
-                return null;
-
-            // Read entire block (length + payload + CRC)
-            var fullData = new byte[totalLength];
-            rtc.ReadBackupMemory(fullData, 0);
-
-            // Validate CRC
-            var crc = new Crc16();
-            ushort computed = crc.ComputeHash(fullData, 0, totalLength - 2);
-            ushort stored = BitConverter.ToUInt16(fullData, totalLength - 2);
-
-            if (computed != stored)
-                return null;
-
-            // Strip header and CRC → return just payload
-            int payloadLength = totalLength - 4;
-            var payload = new byte[payloadLength];
-            Array.Copy(fullData, 2, payload, 0, payloadLength);
-
-            return payload;
-        }
-        // Write BB Ram, wrapping data in header and CRC
-        public static void WriteBBRam(byte[] data)
-        {
-            var rtc = RtcController.GetDefault();
-            var crc = new Crc16();
-
-            int totalLength = data.Length + 4; // 2 bytes header + payload + 2 bytes CRC
-            var fullData = new byte[totalLength];
-
-            // Header: total length (little-endian)
-            var lenBytes = BitConverter.GetBytes((ushort)totalLength);
-            fullData[0] = lenBytes[0];
-            fullData[1] = lenBytes[1];
-
-            // Copy payload into buffer
-            Array.Copy(data, 0, fullData, 2, data.Length);
-
-            // CRC over everything except final 2 bytes
-            ushort crcVal = crc.ComputeHash(fullData, 0, totalLength - 2);
-            var crcBytes = BitConverter.GetBytes(crcVal);
-            fullData[totalLength - 2] = crcBytes[0];
-            fullData[totalLength - 1] = crcBytes[1];
-
-            // Write to BB RAM
-            rtc.WriteBackupMemory(fullData, 0);
-        }
-
         static void RebootToMode(StartFlags mode)
         {
             Debug.WriteLine("Rebooting to mode " + mode.ToString());
-            SetBBStartFlags(mode);
+            BBRam.SetBBStartFlags(mode);
             //SleepAndFixTime(1);
             Thread.Sleep(100);                            // without this delay the BB flag doesn't work, assume it it written async on another thread
             IOMap.SetShutdownCode(IOMap.ShutdownCode.ChangeMode);
@@ -2062,9 +1970,9 @@ namespace AnodeMeter.Hardware
             if (ResetSource == ResetSource.SystemReset)
             {
                 Debug.WriteLine("SystemReset");
-                var sflags = GetBBStartFlags();
+                var sflags = BBRam.GetBBStartFlags();
                 Debug.WriteLine("StartFlags = " + sflags);
-                SetBBStartFlags(StartFlags.Normal);
+                BBRam.SetBBStartFlags(StartFlags.Normal);
 
                 LastStartFlags = sflags;
             }
@@ -2080,34 +1988,34 @@ namespace AnodeMeter.Hardware
         }
     }
 
-        /* =========== In Field Update Strategy =========
-         * 
-         * We have a top level directory "Update" (/SD/Update) with a subdirectory for each hardware type (Update\EMX and Update\G120)
-         * We require one file for a deployment only update (Same SDK release)
-         * We require an additional 3 files if we also need to update the firmware.
-         * We will use a naming convention for now. Later perhaps a descriptor file with file names and CRC/SHA checks etc will be a better approach
-         * 
-         * The Application file name is App_xxxx.hex, where xxxx contains a firmware revision number.
-         * For example, an Application built against SDK 4.2.10.1 should be called App_4.2.10.1_.hex,if we want to be able to load it without loading firmware
-         * It could also be App_4.2.10.1_1234.5678.hex, etc, the subsequent digits being used to identify the file, but not used by the software
-         * 
-         * If the App revision doesn't match the firmware revision in use, then firmware subdirectory and files must be present.
-         * 
-         * Firmware files should be placed in a subdirectory named for the firmware version, eg SDK_4.2.10.1
-         * (or the full path \SD\Update\EMX\SDK_4.2.10.1)
-         * The three firware files must be named Firmware.hex, Firmware2.hex and Config.hex, as per the GHI convention.
-         * These files will normally be copied from the GHI development directory,
-         * ie C:\Program Files (x86)\GHI Electronics\GHI Premium NETMF v4.2 SDK\EMX\Firmware
-         * 
-         * At this stage only one application is supported. At a later date we may allow multiple files and user selection
-         * 
-         * Old files can be moved to a /old subdirectory, new files put in a /new subdirectory, if desired
-         * 
-         * DAV  9AUG13
-         *      10AUG13 Updated to require subdirectory for firmware files)
-        */
+    /* =========== In Field Update Strategy =========
+     * 
+     * We have a top level directory "Update" (/SD/Update) with a subdirectory for each hardware type (Update\EMX and Update\G120)
+     * We require one file for a deployment only update (Same SDK release)
+     * We require an additional 3 files if we also need to update the firmware.
+     * We will use a naming convention for now. Later perhaps a descriptor file with file names and CRC/SHA checks etc will be a better approach
+     * 
+     * The Application file name is App_xxxx.hex, where xxxx contains a firmware revision number.
+     * For example, an Application built against SDK 4.2.10.1 should be called App_4.2.10.1_.hex,if we want to be able to load it without loading firmware
+     * It could also be App_4.2.10.1_1234.5678.hex, etc, the subsequent digits being used to identify the file, but not used by the software
+     * 
+     * If the App revision doesn't match the firmware revision in use, then firmware subdirectory and files must be present.
+     * 
+     * Firmware files should be placed in a subdirectory named for the firmware version, eg SDK_4.2.10.1
+     * (or the full path \SD\Update\EMX\SDK_4.2.10.1)
+     * The three firware files must be named Firmware.hex, Firmware2.hex and Config.hex, as per the GHI convention.
+     * These files will normally be copied from the GHI development directory,
+     * ie C:\Program Files (x86)\GHI Electronics\GHI Premium NETMF v4.2 SDK\EMX\Firmware
+     * 
+     * At this stage only one application is supported. At a later date we may allow multiple files and user selection
+     * 
+     * Old files can be moved to a /old subdirectory, new files put in a /new subdirectory, if desired
+     * 
+     * DAV  9AUG13
+     *      10AUG13 Updated to require subdirectory for firmware files)
+    */
 
-        public class FieldUpdate
+    public class FieldUpdate
     {
         static string Path;
         static string AppBase;
@@ -2129,7 +2037,8 @@ namespace AnodeMeter.Hardware
 
             ArrayList FileList = new ArrayList();
 
-            try {
+            try
+            {
                 if (Globals.SDCardPresent)
                 {
                     if (ConfigureSystem._ps != null)
@@ -2137,7 +2046,8 @@ namespace AnodeMeter.Hardware
                         if (Directory.Exists(Path))
                         {
                             Files = Directory.GetFiles(Path);
-                            foreach (string file in Files) {
+                            foreach (string file in Files)
+                            {
                                 string fn = file.ExtractFileNameFromFullPath();
                                 if (MatchFile(fn, "App_", ".tca"))
                                 {
@@ -2193,7 +2103,8 @@ namespace AnodeMeter.Hardware
                 HaveUpdate = true;
                 NeedFWUpdate = false;
                 //return;
-            } else NeedFWUpdate = true;
+            }
+            else NeedFWUpdate = true;
 
             // No Version-Matched App - try for any match, and confirm FW files exist
             if (MatchFile(fn, "App_", ".tca"))
@@ -2224,12 +2135,12 @@ namespace AnodeMeter.Hardware
                                 _ = int.TryParse(f.Substring(f.Length - 8, 4), out vn);
                                 if (File.Exists(f))
                                 {
-                                    if(vn > svn)
+                                    if (vn > svn)
                                     {   // Use the highest matching subversion if more than one file
                                         svn = vn;
                                         fw = f;
                                         HaveFW = true;
-                                        if(vn > CurrentSVn)
+                                        if (vn > CurrentSVn)
                                         {
                                             NeedFWUpdate = true;    // Compatible, but a newer build exists so load it
                                         }
@@ -2252,7 +2163,8 @@ namespace AnodeMeter.Hardware
                 //string[] sa = s.Split('_');
                 //string up = sa[2];
                 return sa.Left(sa.Length - 4);
-            } catch(Exception e)
+            }
+            catch (Exception e)
             {
                 _ = e;
                 return "";
@@ -2347,7 +2259,7 @@ namespace AnodeMeter.Hardware
                 else
                     // Can't load. Shouldn't have been called!
                     return false;
-                }
+            }
             catch (Exception e)
             {
                 Debug.WriteLine("Fail when updating data " + e.ToString());

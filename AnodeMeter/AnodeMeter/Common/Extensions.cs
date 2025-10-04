@@ -267,7 +267,6 @@ namespace AnodeMeter.Common
             }
             return fName;
         }
-
 #if false
         public static string ToMtString(this MeasurementType Arg)
         {

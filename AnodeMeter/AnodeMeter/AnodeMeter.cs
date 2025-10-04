@@ -99,6 +99,7 @@ namespace AnodeMeter
         private Int16 HouseKeepDivider = 0;
         private Int16 WifiCheckDivider = 0;
         private static bool bForceScheduleReload = false;   // Use for testing, set on down button hold in WiFi mode. DAV 17JAN2024
+        private MeterContext _context;
 
         public BinaryTransport ActiveGW()
         {
@@ -108,15 +109,15 @@ namespace AnodeMeter
         {
             dtLastUserActivity = DateTime.Now;
             _bWaitingToHibernate = false;
-            if(bCancelMessages)
-              _lcd.CancelTimedMessages();
+            if (bCancelMessages)
+                _lcd.CancelTimedMessages();
         }
-        
+
         public void TriggerConfigCheck()
         {
             _dtQueueConfigCheck = DateTime.Now;
         }
-        
+
         private class SelectPotStruct
         {
             public bool _bCanceled;
@@ -210,7 +211,6 @@ namespace AnodeMeter
                         else
                             _sPot = oldPotName;
                     }
-
                     GetPotSelectionOptions();
                 }
             }
@@ -292,7 +292,7 @@ namespace AnodeMeter
             }
 
         }
-
+#if false
         public class PotMeasurementRecord
         {
             public class MeasurementTypeReading
@@ -322,6 +322,45 @@ namespace AnodeMeter
                 _cDrops = new MeasurementTypeReading[MaxAnodeCount];
             }
 
+            /// <summary>
+            /// Constructor to rebuild a record from its serialized string representation.
+            /// </summary>
+            public PotMeasurementRecord(string csvRecord, int maxAnodeCount)
+            {
+                _aDrops = new MeasurementTypeReading[maxAnodeCount];
+                _cDrops = new MeasurementTypeReading[maxAnodeCount];
+
+                var lines = csvRecord.Split('\n');
+                foreach (var line in lines)
+                {
+                    if (string.IsNullOrEmpty(line)) continue;
+
+                    var parts = line.Split(',');
+                    if (parts.Length < 4) continue;
+
+                    if (SampleDate == default(DateTime))
+                        SampleDate = parts[0].ParseDateTime();
+                    if (string.IsNullOrEmpty(PotNumber))
+                        PotNumber = parts[1];
+                    if (string.IsNullOrEmpty(MeterNumber))
+                        MeterNumber = parts[3];
+
+                    var measTypeStr = parts[2];
+                    var type = measTypeStr.EndsWith(":RodDrops") ? MeasurementType.RodDrop : MeasurementType.ClampDrop;
+
+                    for (int i = 4; i < parts.Length; i++)
+                    {
+                        if (!string.IsNullOrEmpty(parts[i]))
+                        {
+                            double.TryParse(parts[i], out double value);
+                            if (type == MeasurementType.RodDrop)
+                                _aDrops[i - 4] = new MeasurementTypeReading(value);
+                            else
+                                _cDrops[i - 4] = new MeasurementTypeReading(value);
+                        }
+                    }
+                }
+            }
             public void AddMeasuredValue(string AnodeNumber, double MeasuredVolts, MeasurementType measType)
             {
                 try
@@ -390,7 +429,7 @@ namespace AnodeMeter
                 return MyToString(ScheduleName, arl);
             }
         }
-
+#endif
         public AnodeMeter()
         {
 
@@ -432,6 +471,13 @@ namespace AnodeMeter
 
             NoPotsToMeter = true;
             _sp = new SignalProcessor();
+            _context = new MeterContext(_ds);
+            _context.Restore();
+        }
+
+        private static void LogWrapper(int severity, string module, string longMsg, string shortMsg)
+        {
+            Logging.IssueEvent((Logging.ErrSeverity)severity, module, longMsg, shortMsg);
         }
 
         internal void Run()
@@ -442,6 +488,10 @@ namespace AnodeMeter
                 SetupMeterType();
                 Log = new Logging(_lcd);
 
+                // Inject the logging method into the Schedule class using the wrapper
+                Schedule.LogAction = LogWrapper;
+                SmelterDetails.LogAction = LogWrapper;
+
                 RegisterActivity(false);
                 _dtWaitaFewSeconds = DateTime.Now.AddSeconds(3);
                 //_hkTimer = new Timer(DoPeriodicHouseKeeping, null, 0, GlobalConsts.HOUSE_KEEPING_CHECK_SECONDS * 1000);
@@ -450,6 +500,11 @@ namespace AnodeMeter
                 if (Globals.CfgState == Globals.ConfigState.ConfigOK)
                 {
                     CreateNavigation();
+                    // If context was restored, apply it now that the UI is initialized
+                    if (_context.HasBeenRestored)
+                    {
+                        ApplyRestoredContext();
+                    }
                 }
 
             }
@@ -498,7 +553,7 @@ namespace AnodeMeter
             {
                 Minute = ((Globals.PowerState == Globals.PowerStates.BatteryTest) ? Globals.BatTimer : Globals.RefTimer) / 60;
 
-                if(!_ds.IsLocked())
+                if (!_ds.IsLocked())
                     ParseBattLog();
 
                 Debug.WriteLine("DateTimeMinute=" + DateTime.Now.Minute.ToString() + "  Minute=" + Minute.ToString());
@@ -509,7 +564,7 @@ namespace AnodeMeter
                 Debug.WriteLine("Used: " + usedRam.ToString());
                 */
             }
-            
+
             if (Globals.WifiSyncTime > 0)
             {
                 if (++WifiCheckDivider >= Globals.WifiSyncTime)
@@ -556,7 +611,7 @@ namespace AnodeMeter
                 {
                     int i = Convert.ToUInt16(s);
                     if (i < 256)
-                        b = (byte) i;
+                        b = (byte)i;
                 }
             }
             catch (Exception ex)
@@ -570,6 +625,23 @@ namespace AnodeMeter
 
         private static void LoadFactoryDefaultsFromSD(Common.DataStore ds)
         {
+#if false
+            Profile.DebugTime("Start Flash Read"); //TODO DAV DEBUG
+            bool flashLoaded = FlashSettings.Reload();
+            Profile.DebugTime("Flash Settings Loaded"); //TODO DAV DEBUG
+
+            try
+            {
+                FactoryDefaultsLoader.Load(ds);
+                if (!flashLoaded)
+                    FlashSettings.SaveSettings();
+            }
+            catch (Exception)
+            {
+                // Error Reading FactoryDefaults, attempt to re-write them
+                BoardSetup.SaveSettingsToSD(ds);
+            }
+#else
             Profile.DebugTime("Start Flash Read"); //TODO DAV DEBUG
             string Result = "";
             bool FlashLoaded = FlashSettings.Reload();
@@ -690,7 +762,7 @@ namespace AnodeMeter
                                 break;
                         }
                     }
-                    if(!FlashLoaded)
+                    if (!FlashLoaded)
                         FlashSettings.SaveSettings();
                 }
                 else
@@ -703,6 +775,7 @@ namespace AnodeMeter
                 // Error Reading FactoryDefaults, attempt to re-write them
                 BoardSetup.SaveSettingsToSD(ds);
             }
+#endif
         }
 
         private void CreateNavigation()
@@ -735,7 +808,7 @@ namespace AnodeMeter
 
             //Globals.bReInitDisplay = true;
 
-            if (Globals.DiskDriveMode || (_ds == null) ||  _ds.IsLocked())
+            if (Globals.DiskDriveMode || (_ds == null) || _ds.IsLocked())
             {
                 //Debug.Print("HouseKeeping Deferred"); //TODO DEBUG Delete DAV
                 return;
@@ -761,7 +834,7 @@ namespace AnodeMeter
                 _sys.Close();
                 IOMap.SetShutdownCode(IOMap.ShutdownCode.ReConfig);
                 GHIElectronics.TinyCLR.Native.Power.Reset();
-//                Microsoft.SPOT.Hardware.PowerState.RebootDevice(true);
+                //                Microsoft.SPOT.Hardware.PowerState.RebootDevice(true);
             }
             //TODO =============== WiFi Test =================
             if (Globals.HaveWifi && !Globals.WifiTestMode)
@@ -781,7 +854,7 @@ namespace AnodeMeter
                         //                        Debug.Print("Rcv: " + res);
 
                         //TODO DAVTEST We may need to disable _noStreamRead before this?
-                        if(Globals.WifiSpeedTestMode == Globals.SpeedTestModes.idle)   
+                        if (Globals.WifiSpeedTestMode == Globals.SpeedTestModes.idle)
                             _gw_wifi.SetWifi(BinaryTransport.WifiStates.Off);
                     }
                 }
@@ -864,6 +937,10 @@ namespace AnodeMeter
             // Time to Sleep
             _lcd.ShowTimedMessage("In Stand-By", 2);
             IOMap.SetShutdownCode(IOMap.ShutdownCode.Sleeping);
+
+            // Save context before hibernating
+            //_context.Save(this);
+
             Thread.Sleep(500);
             DateTime SleepStart = DateTime.Now;
             _lcd.SetBacklight(0);
@@ -953,7 +1030,7 @@ namespace AnodeMeter
                 // Once every hour, force the Garbage collector to run
                 if (DateTime.Now.Minute == 0 && DateTime.Now.Second < GlobalConsts.HOUSE_KEEPING_CHECK_SECONDS * 2)
                     System.GC.GetTotalMemory(true);
-//                    Microsoft.SPOT.Debug.GC(true);
+                //                    Microsoft.SPOT.Debug.GC(true);
 
                 // Every Few minutes, upload any logged errors to the Database-Server
                 if (DateTime.Now > _dtUploadLogs)
@@ -1108,7 +1185,7 @@ namespace AnodeMeter
             // Do Speed Test
             Globals.WifiSpeedTestMode = Globals.SpeedTestModes.running;
 
-            if(ActiveGW().GetTransportType() == BinaryTransport.TransportType.Wifi)
+            if (ActiveGW().GetTransportType() == BinaryTransport.TransportType.Wifi)
                 _gw_wifi.UpdateRSSI();
 
             string data = BuildTestString(); // "This is the data for testing link speed";
@@ -1263,31 +1340,38 @@ namespace AnodeMeter
                 FStream fs = null;
                 try
                 {
-                    
                     _tm.RegisterDataStore(_ds);
 
-                    if (_plant.Init(fs = (FStream) _ds.OpenConfiguration()))
+                    using (fs = (FStream)_ds.OpenConfiguration())
                     {
-                        _tm.Init();
-                        Globals.CfgState = Globals.ConfigState.ConfigOK;
-
+                        // Call the refactored Init and process the result
+                        var initResult = _plant.Init(fs);
+                        if (initResult.Success)
+                        {
+                            Globals.MaskT4 = initResult.MaskT4; // Apply setting from result
+                            _tm.Init();
+                            Globals.CfgState = Globals.ConfigState.ConfigOK;
+                        }
+                        else
+                        {
+                            Globals.CfgState = Globals.ConfigState.NotConfigured;
+                        }
                     }
-                    else
-                        Globals.CfgState = Globals.ConfigState.NotConfigured;
 
-                    //if(fs != null) { fs.Close(); fs.Dispose(); fs = null; }
                     SelectPot.SetPotInfoProvider(_plant.GetPotNameCharRange);
                     SelectPot.SetPotNameCheck(_plant.IsValidPotName);
                     SelectPot.UsePot(_plant.GetDefaultPot());
-
                 }
-                catch
+                catch (Exception ex)
                 {
-                    //if (fs != null) { fs.Close(); fs.Dispose(); fs = null; }
-                } finally {
-                    if (fs != null) { fs.Close(); fs.Dispose(); fs = null; }
+                    Logging.IssueEvent(Logging.ErrSeverity.Severe, "SetupMeterType", "Error initializing plant details: " + ex.Message, "Config Err");
+                }
+                finally
+                {
+                    if (fs != null) { fs.Close(); fs.Dispose(); }
                 }
             }
+
             if (Globals.CfgState != Globals.ConfigState.ConfigOK)
             {
                 _tm.Init();
@@ -1308,6 +1392,10 @@ namespace AnodeMeter
 
             _amb.MeterButtonChanged += new AnodeMeterButtons.EventHandler(amb_MeterButtonChanged);
             _ai.RawDataHandler += new AnalogInput.EventHandler(OnRawAiDataReceived);
+            if (_ai is HardwareAI hardwareAi)
+            {
+                hardwareAi.StallDetected += OnStallDetected;
+            }
             _sp.MeteringReadingHandler += new SignalProcessor.MeteringReadError(OnMeasureStateChange);
             _sp.VoltDropHandler += new SignalProcessor.VoltDropRead(OnNewMeasurement);
 
@@ -1329,7 +1417,7 @@ namespace AnodeMeter
                 else
                     TransportInit();    // Initialize USB and WiFi transports
 
-                if(_bsp.BootedToWinUSB())
+                if (_bsp.BootedToWinUSB())
                     _bsp.EnterSetupMode(BoardSetup.MenuTypes.Mode, 0, 0);
 
                 if (!_tm.IsSystemTimeOK())
@@ -1399,7 +1487,7 @@ namespace AnodeMeter
             {
                 if (cs == BinaryTransport.ConnectionState.Connected && _cs != BinaryTransport.ConnectionState.Connected)
                 {
-                    if(Globals.WifiDebug)
+                    if (Globals.WifiDebug)
                         _lcd.ShowTimedMessage("Wifi Attached", 1);
                     Debug.WriteLine("Wifi Connected");    //TODO REMOVE DEBUG DAV
                     dtCheckForDirtyData = DateTime.Now;
@@ -1411,7 +1499,7 @@ namespace AnodeMeter
                     RegisterActivity();
                     _cs = BinaryTransport.ConnectionState.Detached;
                     Debug.WriteLine("Wifi Disconnected");    //TODO REMOVE DEBUG DAV
-                    if(Globals.WifiDebug)
+                    if (Globals.WifiDebug)
                         _lcd.ShowTimedMessage("Wifi Detached", 1);
                 }
 
@@ -1419,6 +1507,35 @@ namespace AnodeMeter
             catch (Exception ex)
             {
                 Logging.IssueEvent(Logging.ErrSeverity.Severe, "AnodeMeter::OnCommsStateChanged", "Error handling measurement comms state change - Reason: " + ex.Message + "; StackTrace: " + ex.StackTrace, "Comms Hndlr err!");
+            }
+        }
+
+        /// <summary>
+        /// Handles the StallDetected event from HardwareAI.
+        /// Logs the error and triggers a safe reboot of the device.
+        /// </summary>
+        private void OnStallDetected(object sender, EventArgs e)
+        {
+            try
+            {
+                // Log the critical failure before attempting to reboot.
+                Logging.IssueEvent(Logging.ErrSeverity.Fatal, "AnodeMeter::OnStallDetected", "HardwareAI thread stalled. Rebooting.", "AI Stall");
+
+                // Save the current context to BB RAM
+                _context.Save(this);
+
+                // Attempt to flush any pending data to the SD card.
+                DataStore.FlushFileSystem();
+            }
+            catch
+            {
+                // If logging or flushing fails, proceed to reboot anyway.
+            }
+            finally
+            {
+                // Perform a hardware reset.
+                IOMap.SetShutdownCode(IOMap.ShutdownCode.AIStall);
+                GHIElectronics.TinyCLR.Native.Power.Reset();
             }
         }
 
@@ -1568,7 +1685,7 @@ namespace AnodeMeter
 
                     if (!_tm.IsSystemTimeOK())
                         _lcd.ShowTimedMessage("Date Incorrect", "Update via USB", 5);
-                    else if(Navigation == null)
+                    else if (Navigation == null)
                         _lcd.ShowTimedMessage("Meter Settings", "Unavailable", 5);
                     else
                     {
@@ -1599,7 +1716,6 @@ namespace AnodeMeter
                                     break;
 
                                 case AnodeMeterButtonPress.left:
-
                                     switch (Navigation.CurrentMenu())
                                     {
                                         case 0: //lines
@@ -1630,44 +1746,18 @@ namespace AnodeMeter
                                             break;
 
                                         case 2: // in metering a pot
-
-                                            bool bBackToPreviousPot = false;
-
-                                            if (CurrentChoice == "AH")
+                                            // Move to the previous anode if one exists
+                                            Schedule.AnodeSched prev = AnodeMeterSchedules.GetPreviousAnodeFromSched();
+                                            if (prev != null)
                                             {
-                                                if (_CurrentAnode._FirstAnodeForPot && _previousAdHocSchedule != null && _prevAdHocAnode != null)
-                                                {
-                                                    // The operator is attempting to move back to the previous anode
-                                                    // after that pot has been completed and we're waiting at the first anode of the subsequent pot.
-                                                    // This is a reasonably common scenario when we're in As-Hoc mode
-                                                    // and the last anode of a pot had a suspect reading
-                                                    AnodeMeterSchedules = _previousAdHocSchedule;
-                                                    _previousAdHocSchedule = null;
-
-                                                    _CurrentAnode = _prevAdHocAnode;
-                                                    _prevAdHocAnode = null;
-                                                    bBackToPreviousPot = true;
-                                                }
+                                                _CurrentAnode = prev;
+                                                DisplayMeteringInfo(_CurrentAnode);
                                             }
-                                            if (!bBackToPreviousPot)
-                                            {
-                                                // Don't believe that we need to call ProcessAnode on left-button press
-                                                // ProcessAnode(true);
-
-                                                // Move to the previous schedule if one exists
-                                                Schedule.AnodeSched prev = AnodeMeterSchedules.GetPreviousAnodeFromSched();
-                                                if (prev != null)
-                                                    _CurrentAnode = prev;
-                                            }
-
-                                            DisplayMeteringInfo(_CurrentAnode);
                                             break;
                                     }
                                     break;
 
-
                                 case AnodeMeterButtonPress.right:
-
                                     switch (Navigation.CurrentMenu())
                                     {
                                         case 0: //lines
@@ -1698,20 +1788,8 @@ namespace AnodeMeter
                                             break;
 
                                         case 2: // in metering a pot
+                                            // Skip the current anode and advance to the next one.
                                             ProcessAnode(true);
-                                            DisplayMeteringInfo(_CurrentAnode);
-                                            _CurrentAnode = AnodeMeterSchedules.GetNextMeasurement();
-                                            if (_CurrentAnode == null)
-                                            {
-                                                ClearMenuDisplay(1);
-                                                ClearMenuDisplay(2);
-                                                Navigation.MoveToTopLevelMenu();
-                                                Navigation.SetChoiceZero();
-                                                CurrentChoice = Navigation.GetCurrentChoice();
-                                                _lcd.MoveIntoDisplay(Navigation.Display(), MenuChoicePosition);
-                                            }
-                                            else
-                                                DisplayMeteringInfo(_CurrentAnode);
                                             break;
                                     }
                                     break;
@@ -2029,10 +2107,10 @@ namespace AnodeMeter
                     shift = "NS";
 
                 //string bottomLineofDisplay = shift + Day + "/" + Month; 
-                 bottomLineofDisplay = Day + "/" + Month + "/" + Year + " - " + shift;
+                bottomLineofDisplay = Day + "/" + Month + "/" + Year + " - " + shift;
             }
             else
-                 bottomLineofDisplay = "No Schedules";
+                bottomLineofDisplay = "No Schedules";
 
             //bottomLineofDisplay += " ";
             //bottomLineofDisplay += DateTime.Now.ToString("HH:mm");
@@ -2459,9 +2537,8 @@ namespace AnodeMeter
                     {
                         string[] RecordParts = Record[i].Split(comma);
 
-                        if (RecordParts.Length >= 4)
-                        {   // We were tripping up on empty lines in the file - DAV
-
+                        if (RecordParts.Length >= 4) // We were tripping up on empty lines in the file - DAV
+                        {
                             string key = RecordParts[2].ToString();
 
                             if (RecordParts[3].ToString() == Line)
@@ -2660,39 +2737,21 @@ namespace AnodeMeter
                     {
                         // Guard against any remaining edge cases
                         if (_PotAnodeResults != null)
-                            _PotAnodeResults.AddMeasuredValue(_CurrentAnode.Name, _currentMeasVolts, _CurrentAnode._measType);
+                        {
+                            try
+                            {
+                                _PotAnodeResults.AddMeasuredValue(_CurrentAnode.Name, _currentMeasVolts, _CurrentAnode._measType);
+                            }
+                            catch (Exception ex)
+                            {
+                                Logging.IssueEvent(Logging.ErrSeverity.Severe, "PotMeasurementRecord::AddMeasuredValue", "Attempted to add a reading for anode= " + ((_CurrentAnode.Name == null) ? "null" : _CurrentAnode.Name) + ", MeasuredVolts=" + _currentMeasVolts.ToString() + ". Reason: " + ex.Message, "Software err");
+                            }
+                        }
                     }
-
-                    //this is a special case where there is only one anode
-                    //if (_CurrentAnode._FirstAnodeForPot && _CurrentAnode._MidAnodeForPot && _CurrentAnode._LastAnodeForPot)
-                    //{
-                    //    _PotAnodeResults = new PotMeasurementRecord(DateTime.Now, _CurrentAnode._potName, MeterNumber.ToString(), _plant.GetPotDetails(_CurrentAnode._potName)._anodeCount);
-                    //    if (!AnodeSkipped)
-                    //    {
-                    //        _PotAnodeResults.AddMeasuredValue(_CurrentAnode.Name, _currentMeasVolts, _mtExpectedNext);
-                    //    }
-                    //    _ds.WritePotMeasurement(_PotAnodeResults.MyToString());
-                    //}
-                    //else
-                    //{
-                    //    if (_CurrentAnode._FirstAnodeForPot)
-                    //    {
-                    //        _PotAnodeResults = new PotMeasurementRecord(DateTime.Now, _CurrentAnode._potName, MeterNumber.ToString(), _plant.GetPotDetails(_CurrentAnode._potName)._anodeCount);
-                    //        if (!AnodeSkipped)
-                    //        {
-                    //            _PotAnodeResults.AddMeasuredValue(_CurrentAnode.Name, _currentMeasVolts, _mtExpectedNext);
-                    //        }
-                    //    }
-                    //    else
-                    //    {
-                    //        _previousAdHocSchedule = null;
-                    //        _prevAdHocAnode = null;
-                    //    }
 
                     if (_CurrentAnode._MidAnodeForPot && !AnodeSkipped)
                     {
                         _led.IndicateMilestone(LED.Milestones.HalfPot);
-                        // _PotAnodeResults.AddMeasuredValue(_CurrentAnode.Name, _currentMeasVolts, _mtExpectedNext);
                     }
 
                     if (_CurrentAnode._LastAnodeForPot)
@@ -2728,11 +2787,6 @@ namespace AnodeMeter
                             LastThreeReadings.Clear();
                     }
 
-                    //if (!AnodeSkipped && (!_CurrentAnode._LastAnodeForPot && !_CurrentAnode._FirstAnodeForPot && !_CurrentAnode._MidAnodeForPot))
-                    //{
-                    //    _PotAnodeResults.AddMeasuredValue(_CurrentAnode.Name, _currentMeasVolts, _mtExpectedNext);
-                    //}
-
                     if (!AnodeSkipped)
                     {
                         if (LastThreeReadings.Count == 0)
@@ -2760,8 +2814,7 @@ namespace AnodeMeter
 
                     if (!bRewoundToLastPot)
                     {
-                        if (!AnodeSkipped)
-                            _CurrentAnode = AnodeMeterSchedules.GetNextMeasurement();
+                        _CurrentAnode = AnodeMeterSchedules.GetNextMeasurement();
                     }
                     else
                         _CurrentAnode = null;
@@ -2782,8 +2835,23 @@ namespace AnodeMeter
                         {
                             string nextPot = null;
                             nextPot = _plant.GetNextAdhocPot(SelectPot.GetPot());
-                            SelectPot.UsePot(nextPot);
-                            ProcessSelection();
+                            if (nextPot != null)
+                            {
+                                SelectPot.UsePot(nextPot);
+                                ProcessSelection();
+                            }
+                            else
+                            {
+                                // No more pots, return to menu
+                                NoPotsToMeter = true;
+                                LastThreeReadings.Clear();
+                                ClearMenuDisplay(1);
+                                ClearMenuDisplay(2);
+                                Navigation.MoveToTopLevelMenu();
+                                Navigation.SetChoiceZero();
+                                CurrentChoice = Navigation.GetCurrentChoice();
+                                _lcd.MoveIntoDisplay(Navigation.Display(), MenuChoicePosition);
+                            }
                         }
                         else
                         {
@@ -2876,5 +2944,265 @@ namespace AnodeMeter
         }
         private string FormatMeasurement(double Measurement) { return Measurement.ToString(_plant.GetMeasurementDisplayString()); }
 
+        /// <summary>
+        /// Applies the restored metering context after a reboot.
+        /// </summary>
+        private void ApplyRestoredContext()
+        {
+            if (_context == null || !_context.HasBeenRestored)
+                return;
+
+            try
+            {
+                CurrentChoice = _context.CurrentChoice;
+                _currentlyExecutingSchedule = _context.CurrentlyExecutingSchedule;
+                _PotAnodeResults = _context.PotAnodeResults; // Directly use the restored object
+                LastThreeReadings = _context.LastThreeReadings;
+
+                if (!string.IsNullOrEmpty(CurrentChoice) && AnodeMeterSchedules != null)
+                {
+                    bool scheduleLoaded = false;
+                    // Handle Ad-Hoc mode differently from prescribed schedules
+                    if (CurrentChoice == "AH" && _PotAnodeResults != null && !string.IsNullOrEmpty(_PotAnodeResults.PotNumber))
+                    {
+                        // For AH mode, we must rebuild the schedule dynamically
+                        string potNumber = _PotAnodeResults.PotNumber;
+                        string adhocSchedData = AnodeMeterSchedules.BuildAdhocSchedule(potNumber, _plant.GetAnodeListForPot(potNumber));
+                        LoadSelectedSchedule("AH", adhocSchedData);
+                        InitialiseSelectedSchedule("AH");
+                        scheduleLoaded = true;
+                    }
+                    else
+                    {
+                        // For prescribed schedules, load from the file as before
+                        scheduleLoaded = GetSelectedSectionFromFile(CurrentChoice);
+                    }
+
+                    if (scheduleLoaded)
+                    {
+                        // Restore UI to the metering screen
+                        Navigation.MoveToBottomLevelMenu();
+
+                        // Find the anode that was being measured
+                        Schedule.AnodeSched savedAnode = null;
+                        if (!string.IsNullOrEmpty(_context.CurrentAnodeName))
+                        {
+                            do
+                            {
+                                savedAnode = AnodeMeterSchedules.GetNextMeasurement();
+                            }
+                            while (savedAnode != null && savedAnode.Name != _context.CurrentAnodeName);
+                        }
+
+                        _CurrentAnode = savedAnode ?? AnodeMeterSchedules.GenerateSchedule(CurrentChoice);
+
+                        // Re-draw the screen with the restored information
+                        DisplayMeteringInfo(_CurrentAnode);
+                        _lcd.ShowTimedMessage("Context Restored", 2);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.IssueEvent(Logging.ErrSeverity.Warning, "AnodeMeter::ApplyRestoredContext", "Failed to apply restored context. Reason: " + ex.Message, "Ctx Restore Err");
+            }
+            finally
+            {
+                // Clear the context from BBRAM to prevent re-applying it on next boot
+                _context.Clear();
+            }
+        }
+
+
+        /// <summary>
+        /// Manages saving and restoring the metering context to/from BB RAM.
+        /// </summary>
+        private class MeterContext
+        {
+            private DataStore _dataStore;
+
+            public bool HasBeenRestored { get; private set; }
+            public string CurrentChoice { get; private set; }
+            public string CurrentlyExecutingSchedule { get; private set; }
+            public string CurrentAnodeName { get; private set; }
+            public PotMeasurementRecord PotAnodeResults { get; private set; }
+            public ArrayList LastThreeReadings { get; private set; }
+
+            public MeterContext(DataStore ds)
+            {
+                _dataStore = ds;
+                LastThreeReadings = new ArrayList();
+            }
+
+            public void Save(AnodeMeter am)
+            {
+                if (am == null || am.Navigation == null || am._CurrentAnode == null || !am.MeteringAPot())
+                {
+                    Clear();
+                    return;
+                }
+
+                try
+                {
+                    using (var ms = new MemoryStream())
+                    {
+                        // Write context strings
+                        WriteString(ms, am.CurrentChoice ?? "");
+                        WriteString(ms, am._currentlyExecutingSchedule ?? "");
+                        WriteString(ms, am._CurrentAnode.Name ?? "");
+
+                        // Serialize LastThreeReadings
+                        ms.Write(BitConverter.GetBytes(am.LastThreeReadings.Count), 0, 4);
+                        foreach (var reading in am.LastThreeReadings)
+                        {
+                            WriteString(ms, reading.ToString());
+                        }
+
+                        // Efficiently serialize PotAnodeResults
+                        if (am._PotAnodeResults == null)
+                        {
+                            ms.WriteByte(0); // Write a 'false' boolean flag
+                        }
+                        else
+                        {
+                            ms.WriteByte(1); // Write a 'true' boolean flag
+                            var results = am._PotAnodeResults;
+                            ms.Write(BitConverter.GetBytes(results.SampleDate.Ticks), 0, 8);
+                            WriteString(ms, results.PotNumber ?? "");
+                            WriteString(ms, results.MeterNumber ?? "");
+                            ms.Write(BitConverter.GetBytes(results.MaxAnodeCount), 0, 4);
+
+                            var aDropReadings = results.GetReadings(MeasurementType.RodDrop);
+                            ms.Write(BitConverter.GetBytes(aDropReadings.Count), 0, 4);
+                            foreach (DictionaryEntry entry in aDropReadings)
+                            {
+                                ms.WriteByte((byte)(int)entry.Key);
+                                ms.Write(BitConverter.GetBytes((double)entry.Value), 0, 8);
+                            }
+
+                            var cDropReadings = results.GetReadings(MeasurementType.ClampDrop);
+                            ms.Write(BitConverter.GetBytes(cDropReadings.Count), 0, 4);
+                            foreach (DictionaryEntry entry in cDropReadings)
+                            {
+                                ms.WriteByte((byte)(int)entry.Key);
+                                ms.Write(BitConverter.GetBytes((double)entry.Value), 0, 8);
+                            }
+                        }
+
+                        BBRam.WriteContext(ms.ToArray());
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logging.IssueEvent(Logging.ErrSeverity.Severe, "MeterContext::Save", "Failed to save context: " + ex.Message, "Ctx Save Err");
+                }
+            }
+
+            public void Restore()
+            {
+                try
+                {
+                    byte[] buffer = BBRam.ReadContext();
+                    if (buffer == null || buffer.Length == 0) return;
+
+                    using (var ms = new MemoryStream(buffer))
+                    {
+                        CurrentChoice = ReadString(ms);
+                        CurrentlyExecutingSchedule = ReadString(ms);
+                        CurrentAnodeName = ReadString(ms);
+
+                        // Restore LastThreeReadings
+                        var intBytes = new byte[4];
+                        ms.Read(intBytes, 0, 4);
+                        int readingsCount = BitConverter.ToInt32(intBytes, 0);
+                        LastThreeReadings.Clear();
+                        for (int i = 0; i < readingsCount; i++)
+                        {
+                            LastThreeReadings.Add(ReadString(ms));
+                        }
+
+                        // Restore PotAnodeResults
+                        if (ms.ReadByte() == 1)
+                        {
+                            var longBytes = new byte[8];
+                            ms.Read(longBytes, 0, 8);
+                            var sampleDate = new DateTime(BitConverter.ToInt64(longBytes, 0));
+                            var potNumber = ReadString(ms);
+                            var meterNumber = ReadString(ms);
+                            ms.Read(intBytes, 0, 4);
+                            var maxAnodes = BitConverter.ToInt32(intBytes, 0);
+
+                            PotAnodeResults = new PotMeasurementRecord(sampleDate, potNumber, meterNumber, maxAnodes);
+
+                            ms.Read(intBytes, 0, 4);
+                            int aDropCount = BitConverter.ToInt32(intBytes, 0);
+                            for (int i = 0; i < aDropCount; i++)
+                            {
+                                int anodeIndex = ms.ReadByte();
+                                ms.Read(longBytes, 0, 8);
+                                double value = BitConverter.ToDouble(longBytes, 0);
+                                PotAnodeResults.SetReading(anodeIndex, value, MeasurementType.RodDrop);
+                            }
+
+                            ms.Read(intBytes, 0, 4);
+                            int cDropCount = BitConverter.ToInt32(intBytes, 0);
+                            for (int i = 0; i < cDropCount; i++)
+                            {
+                                int anodeIndex = ms.ReadByte();
+                                ms.Read(longBytes, 0, 8);
+                                double value = BitConverter.ToDouble(longBytes, 0);
+                                PotAnodeResults.SetReading(anodeIndex, value, MeasurementType.ClampDrop);
+                            }
+                        }
+                        else
+                        {
+                            PotAnodeResults = null;
+                        }
+
+                        HasBeenRestored = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logging.IssueEvent(Logging.ErrSeverity.Warning, "MeterContext::Restore", "Failed to restore context: " + ex.Message, "Ctx Restore Err");
+                    Clear();
+                }
+            }
+
+            public void Clear()
+            {
+                try
+                {
+                    BBRam.ClearContext();
+                    HasBeenRestored = false;
+                }
+                catch (Exception ex)
+                {
+                    Logging.IssueEvent(Logging.ErrSeverity.Severe, "MeterContext::Clear", "Failed to clear context: " + ex.Message, "Ctx Clear Err");
+                }
+            }
+
+            private void WriteString(MemoryStream ms, string s)
+            {
+                var bytes = Encoding.UTF8.GetBytes(s);
+                ms.Write(BitConverter.GetBytes(bytes.Length), 0, 4);
+                ms.Write(bytes, 0, bytes.Length);
+            }
+
+            private string ReadString(MemoryStream ms)
+            {
+                var lenBytes = new byte[4];
+                ms.Read(lenBytes, 0, 4);
+                int len = BitConverter.ToInt32(lenBytes, 0);
+                if (len > 0)
+                {
+                    var strBytes = new byte[len];
+                    ms.Read(strBytes, 0, len);
+                    return new string(Encoding.UTF8.GetChars(strBytes));
+                }
+                return "";
+            }
+        }
     }
- }
+}
+
