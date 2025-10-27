@@ -100,6 +100,8 @@ namespace AnodeMeter
         private Int16 WifiCheckDivider = 0;
         private static bool bForceScheduleReload = false;   // Use for testing, set on down button hold in WiFi mode. DAV 17JAN2024
         private MeterContext _context;
+        private HardwareButton[] Buttons; // so we can use Centre button (or others) as special, eg Shift key
+        private bool _bShiftKeyDown = false;
 
         public BinaryTransport ActiveGW()
         {
@@ -441,6 +443,7 @@ namespace AnodeMeter
 #else
             _sys = new Hardware.ConfigureSystem(this);
 #endif
+            //Globals._lastResetCause = (IOMap.ShutdownCode)IOMap.GetShutdownCode();
             Profile.DebugTime("HW Config Done"); //TODO DAV DEBUG
             _sys.InitOnStart();
             Profile.DebugTime("InitOnStart Done"); //TODO DAV DEBUG
@@ -506,7 +509,11 @@ namespace AnodeMeter
                         ApplyRestoredContext();
                     }
                 }
-
+                // Start the AI watchdog now that initialization is complete.
+                if (_ai is HardwareAI hardwareAi)
+                {
+                    hardwareAi.StartWatchdog();
+                }
             }
             catch (Exception ex)
             {
@@ -1292,6 +1299,7 @@ namespace AnodeMeter
                     if (_lcd == null) _lcd = new LiquidCrystal();
                     Profile.DebugTime("Setup lcd"); //TODO DAV DEBUG
                     _amb = new PhysicalButtons();
+                    Buttons = ((PhysicalButtons)_amb).GetButtons();
                     Profile.DebugTime("Setup amb"); //TODO DAV DEBUG
                     _ai = new HardwareAI();
                     Profile.DebugTime("Setup ai "); //TODO DAV DEBUG
@@ -1325,9 +1333,12 @@ namespace AnodeMeter
             }
             else
             {
-                //_lcd.MoveIntoDisplay("Loading Meter", new LcdDisplay.CursorPosition(0, 0));
-                //_lcd.MoveIntoDisplay("Configuration", new LcdDisplay.CursorPosition(1, 0));
-                //_lcd.ShowTimedMessage("Loading Meter", "Configuration",1);
+                // Fast startup logic based on shutdown cause
+                if (Globals.ShutdownCode == IOMap.ShutdownCode.AIStallReboot)
+                {
+                    _lcd.CancelTimedMessages(); // Prevent other startup messages from showing
+                    _lcd.ShowTimedMessage("ADC Reset...", 1);
+                }
             }
 
             Profile.DebugTime("Loading"); //TODO DAV DEBUG
@@ -1516,6 +1527,16 @@ namespace AnodeMeter
         /// </summary>
         private void OnStallDetected(object sender, EventArgs e)
         {
+            // Check if we just rebooted from an ADC stall.
+            if (Globals.ShutdownCode == IOMap.ShutdownCode.AIStallReboot)
+            {
+                // The reboot did not fix the problem. Flag a persistent fault and do not reboot again.
+                Globals.AdcFaulted = true;
+                Logging.IssueEvent(Logging.ErrSeverity.Fatal, "AnodeMeter::OnStallDetected", "Persistent ADC stall detected after reboot. Halting ADC.", "ADC Fault");
+                IOMap.SetShutdownCode(IOMap.ShutdownCode.AIStall);
+                return; // Stop here to prevent a reboot loop.
+            }
+
             try
             {
                 // Log the critical failure before attempting to reboot.
@@ -1534,11 +1555,16 @@ namespace AnodeMeter
             finally
             {
                 // Perform a hardware reset.
-                IOMap.SetShutdownCode(IOMap.ShutdownCode.AIStall);
+                IOMap.SetShutdownCode(IOMap.ShutdownCode.AIStallReboot);
                 GHIElectronics.TinyCLR.Native.Power.Reset();
             }
         }
 
+        public void SaveContext()
+        {
+            if(_context != null)
+                _context.Save(this);
+        }
         // This method will be called when a new Anode-Rod-Drop value is available
         void OnNewMeasurement(object sender, VoltageMeasAquiredEvent e)
         {
@@ -1694,6 +1720,12 @@ namespace AnodeMeter
                             switch (e.MeterButton)
                             {
                                 case AnodeMeterButtonPress.centre:
+                                    if(_bShiftKeyDown)
+                                    {
+                                        // Special function Centre + Right held
+                                        _bShiftKeyDown = false;
+                                        break;
+                                    }
                                     switch (CurrentChoice)
                                     {
                                         case "AH":
@@ -1709,6 +1741,12 @@ namespace AnodeMeter
                                     break;
 
                                 case AnodeMeterButtonPress.centrehold:
+                                    if (_bShiftKeyDown)
+                                    {
+                                        // Special function Centre + Right held
+                                        _bShiftKeyDown = false;
+                                        break;
+                                    }
                                     {
                                         Globals.bReInitDisplay = true;  // Reinit LCD Display (just in case!)
                                         DisplayMeterInformation();
@@ -1758,6 +1796,24 @@ namespace AnodeMeter
                                     break;
 
                                 case AnodeMeterButtonPress.right:
+                                    if (Buttons[4].held)    // Centre button held?
+                                    {
+                                        _bShiftKeyDown = true;
+                                        // Ignore held right button presses here - they are handled elsewhere
+                                        Debug.WriteLine("Special function Centre Right");
+                                        // ********* Note: Example of injecting tests here *********
+                                        // Use Centre key as qualifier (eg Shift)
+                                        // Can use with other keys also if required
+                                        //if (_ai is HardwareAI hardwareAi)
+                                        //{
+                                        //    hardwareAi.SimulateStall = true;
+                                        //}
+                                        //_context.Save(this);
+                                        // Perform a hardware reset.
+                                        //IOMap.SetShutdownCode(IOMap.ShutdownCode.AIStallReboot);
+                                        //GHIElectronics.TinyCLR.Native.Power.Reset();
+                                        break;
+                                    }
                                     switch (Navigation.CurrentMenu())
                                     {
                                         case 0: //lines
@@ -2331,6 +2387,11 @@ namespace AnodeMeter
 
         private void ProcessSelection()
         {
+            if (Globals.AdcFaulted)
+            {
+                _lcd.ShowTimedMessage("ADC Fault", 2);
+                return;
+            }
             string MenuToDisplay = "";
 
             switch (Navigation.CurrentMenu())
@@ -2688,7 +2749,8 @@ namespace AnodeMeter
 
             if (_CurrentAnode != null)
             {
-                if (LastThreeReadings.Count != 0)
+                // Only clear the readings if we are NOT in the middle of a context restore.
+                if (LastThreeReadings.Count != 0 && (_context == null || !_context.HasBeenRestored))
                     LastThreeReadings.Clear();
 
                 DisplayMeteringInfo(_CurrentAnode);
@@ -2957,7 +3019,17 @@ namespace AnodeMeter
                 CurrentChoice = _context.CurrentChoice;
                 _currentlyExecutingSchedule = _context.CurrentlyExecutingSchedule;
                 _PotAnodeResults = _context.PotAnodeResults; // Directly use the restored object
-                LastThreeReadings = _context.LastThreeReadings;
+
+                // LastThreeReadings is now derived, not restored directly.
+                LastThreeReadings.Clear();
+                if (_PotAnodeResults != null)
+                {
+                    var recentReadings = _PotAnodeResults.GetLastReadings(3);
+                    foreach (var reading in recentReadings)
+                    {
+                        LastThreeReadings.Add(FormatMeasurement((double)reading));
+                    }
+                }
 
                 if (!string.IsNullOrEmpty(CurrentChoice) && AnodeMeterSchedules != null)
                 {
@@ -2998,7 +3070,8 @@ namespace AnodeMeter
 
                         // Re-draw the screen with the restored information
                         DisplayMeteringInfo(_CurrentAnode);
-                        _lcd.ShowTimedMessage("Context Restored", 2);
+                        // Removed the timed message that was overwriting the display.
+                        // _lcd.ShowTimedMessage("Context Restored", 2);
                     }
                 }
             }
@@ -3013,7 +3086,9 @@ namespace AnodeMeter
             }
         }
 
-
+        /// <summary>
+        /// Manages saving and restoring the metering context to/from BB RAM.
+        /// </summary>
         /// <summary>
         /// Manages saving and restoring the metering context to/from BB RAM.
         /// </summary>
@@ -3026,14 +3101,11 @@ namespace AnodeMeter
             public string CurrentlyExecutingSchedule { get; private set; }
             public string CurrentAnodeName { get; private set; }
             public PotMeasurementRecord PotAnodeResults { get; private set; }
-            public ArrayList LastThreeReadings { get; private set; }
 
             public MeterContext(DataStore ds)
             {
                 _dataStore = ds;
-                LastThreeReadings = new ArrayList();
             }
-
             public void Save(AnodeMeter am)
             {
                 if (am == null || am.Navigation == null || am._CurrentAnode == null || !am.MeteringAPot())
@@ -3051,13 +3123,6 @@ namespace AnodeMeter
                         WriteString(ms, am._currentlyExecutingSchedule ?? "");
                         WriteString(ms, am._CurrentAnode.Name ?? "");
 
-                        // Serialize LastThreeReadings
-                        ms.Write(BitConverter.GetBytes(am.LastThreeReadings.Count), 0, 4);
-                        foreach (var reading in am.LastThreeReadings)
-                        {
-                            WriteString(ms, reading.ToString());
-                        }
-
                         // Efficiently serialize PotAnodeResults
                         if (am._PotAnodeResults == null)
                         {
@@ -3072,20 +3137,15 @@ namespace AnodeMeter
                             WriteString(ms, results.MeterNumber ?? "");
                             ms.Write(BitConverter.GetBytes(results.MaxAnodeCount), 0, 4);
 
-                            var aDropReadings = results.GetReadings(MeasurementType.RodDrop);
-                            ms.Write(BitConverter.GetBytes(aDropReadings.Count), 0, 4);
-                            foreach (DictionaryEntry entry in aDropReadings)
+                            // Save the entire chronological list of readings
+                            var allReadings = results.GetAllReadingsInOrder();
+                            ms.Write(BitConverter.GetBytes(allReadings.Count), 0, 4);
+                            foreach (var reading in allReadings)
                             {
-                                ms.WriteByte((byte)(int)entry.Key);
-                                ms.Write(BitConverter.GetBytes((double)entry.Value), 0, 8);
-                            }
-
-                            var cDropReadings = results.GetReadings(MeasurementType.ClampDrop);
-                            ms.Write(BitConverter.GetBytes(cDropReadings.Count), 0, 4);
-                            foreach (DictionaryEntry entry in cDropReadings)
-                            {
-                                ms.WriteByte((byte)(int)entry.Key);
-                                ms.Write(BitConverter.GetBytes((double)entry.Value), 0, 8);
+                                var typedReading = (PotMeasurementRecord.TypedReading)reading;
+                                ms.WriteByte((byte)typedReading.AnodeIndex);
+                                ms.Write(BitConverter.GetBytes(typedReading.Value), 0, 8);
+                                ms.WriteByte((byte)typedReading.Type);
                             }
                         }
 
@@ -3111,20 +3171,11 @@ namespace AnodeMeter
                         CurrentlyExecutingSchedule = ReadString(ms);
                         CurrentAnodeName = ReadString(ms);
 
-                        // Restore LastThreeReadings
-                        var intBytes = new byte[4];
-                        ms.Read(intBytes, 0, 4);
-                        int readingsCount = BitConverter.ToInt32(intBytes, 0);
-                        LastThreeReadings.Clear();
-                        for (int i = 0; i < readingsCount; i++)
-                        {
-                            LastThreeReadings.Add(ReadString(ms));
-                        }
-
                         // Restore PotAnodeResults
                         if (ms.ReadByte() == 1)
                         {
                             var longBytes = new byte[8];
+                            var intBytes = new byte[4];
                             ms.Read(longBytes, 0, 8);
                             var sampleDate = new DateTime(BitConverter.ToInt64(longBytes, 0));
                             var potNumber = ReadString(ms);
@@ -3134,24 +3185,16 @@ namespace AnodeMeter
 
                             PotAnodeResults = new PotMeasurementRecord(sampleDate, potNumber, meterNumber, maxAnodes);
 
+                            // Restore readings in their original chronological order
                             ms.Read(intBytes, 0, 4);
-                            int aDropCount = BitConverter.ToInt32(intBytes, 0);
-                            for (int i = 0; i < aDropCount; i++)
+                            int readingCount = BitConverter.ToInt32(intBytes, 0);
+                            for (int i = 0; i < readingCount; i++)
                             {
                                 int anodeIndex = ms.ReadByte();
                                 ms.Read(longBytes, 0, 8);
                                 double value = BitConverter.ToDouble(longBytes, 0);
-                                PotAnodeResults.SetReading(anodeIndex, value, MeasurementType.RodDrop);
-                            }
-
-                            ms.Read(intBytes, 0, 4);
-                            int cDropCount = BitConverter.ToInt32(intBytes, 0);
-                            for (int i = 0; i < cDropCount; i++)
-                            {
-                                int anodeIndex = ms.ReadByte();
-                                ms.Read(longBytes, 0, 8);
-                                double value = BitConverter.ToDouble(longBytes, 0);
-                                PotAnodeResults.SetReading(anodeIndex, value, MeasurementType.ClampDrop);
+                                var type = (MeasurementType)ms.ReadByte();
+                                PotAnodeResults.SetReading(anodeIndex, value, type);
                             }
                         }
                         else

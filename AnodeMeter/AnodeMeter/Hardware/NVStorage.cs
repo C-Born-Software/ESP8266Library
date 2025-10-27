@@ -281,7 +281,7 @@ namespace AnodeMeter.Hardware
         private const ushort BBRAM_SIGNATURE = 0xACDC;
         private const int HEADER_SIZE = 6; // Signature(2) + Length(2) + Flags(1) + ShutdownCode(1)
         private const int MIN_BLOCK_SIZE = HEADER_SIZE + 2; // Header + CRC(2)
-        private const int MAX_BLOCK_SIZE = 128; // Max total size for the BB RAM block
+        private const int MAX_BLOCK_SIZE = 1024; // Max total size for the BB RAM block (Allows for 40 anode pots)
 
         private static bool ReadRawBlock(out byte[] block)
         {

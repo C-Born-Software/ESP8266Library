@@ -180,13 +180,18 @@ namespace AnodeMeter.Common
                 Thread.Sleep(100);
 
             ReInit();
-            ShowTimedMessage("Booting", "AnodeMeter", 1);
-            ShowTimedMessage("C-Born Software", "Built " + Globals.BuildDate.ToString("yyyy-MM-dd"), 3);
+            // Only show initial boot messages on a normal startup
+            if ((Globals.ShutdownCode != IOMap.ShutdownCode.AIStallReboot)
+                && (Globals.ShutdownCode != IOMap.ShutdownCode.ChangeMode))
+            {
+                ShowTimedMessage("Booting", "AnodeMeter", 1);
+                ShowTimedMessage("C-Born Software", "Built " + Globals.BuildDate.ToString("yyyy-MM-dd"), 3);
 
-            ShowTimedMessage("Last State: ", IOMap.ShutdownMsg(), 3);
+                ShowTimedMessage("Last State: ", IOMap.ShutdownMsg(), 3);
 
-            MoveIntoDisplay("Loading Meter", new LcdDisplay.CursorPosition(0, 0));
-            MoveIntoDisplay("Configuration", new LcdDisplay.CursorPosition(1, 0));
+                MoveIntoDisplay("Loading Meter", new LcdDisplay.CursorPosition(0, 0));
+                MoveIntoDisplay("Configuration", new LcdDisplay.CursorPosition(1, 0));
+            }
             LcdReady = true;
 
             for (; ; )

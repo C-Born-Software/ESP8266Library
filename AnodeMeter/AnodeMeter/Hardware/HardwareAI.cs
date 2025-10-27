@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using AnodeMeter.Common;
 
@@ -40,27 +41,43 @@ namespace AnodeMeter.Hardware
         {
             HeartbeatCounter = 0;
             _scanInputThread = new Thread(ScanInputLoop);
-            _scanInputThread.Priority = ThreadPriority.BelowNormal;
+            _scanInputThread.Priority = ThreadPriority.AboveNormal;
             _scanInputThread.Start();
-
-            _watchdogThread = new Thread(WatchdogLoop);
-            _watchdogThread.Priority = ThreadPriority.Highest;
-            _watchdogThread.Start();
 
             // _successiveCountsInErrorRange = 0;
             _dtLastBatteryVoltageCheck = DateTime.MinValue;
         }
 
+        public void StartWatchdog()
+        {
+            if (_watchdogThread == null)
+            {
+                _watchdogThread = new Thread(WatchdogLoop);
+                _watchdogThread.Priority = ThreadPriority.Normal;
+                _watchdogThread.Start();
+            }
+        }
+
+        public void StopWatchdog()
+        {
+            if (_watchdogThread != null)
+            {
+                // The thread will exit cleanly on the next loop.
+                // No need to join here as it might delay shutdown.
+                _watchdogThread = null;
+            }
+        }
+
         /// <summary>
-        /// A high-priority watchdog thread that monitors the liveness of the ScanInputLoop.
+        /// A watchdog thread that monitors the liveness of the ScanInputLoop.
         /// If the HeartbeatCounter stops incrementing, it means the scan thread is stalled,
         /// and this watchdog will force a system reboot.
         /// </summary>
         private void WatchdogLoop()
         {
             long lastSeenHeartbeat = -1;
-            // The number of checks to fail before rebooting. 3 checks * 2s interval = 6s timeout.
-            const int failureThreshold = 3;
+            // The number of checks to fail before rebooting. 4 checks * 2s interval = 8s timeout.
+            const int failureThreshold = 4;
             int failureCount = 0;
 
             while (!_exitThread)
@@ -72,14 +89,22 @@ namespace AnodeMeter.Hardware
                 if (currentHeartbeat == lastSeenHeartbeat)
                 {
                     failureCount++;
+
+                    Debug.WriteLine("HardwareAI Watchdog - HB: " + currentHeartbeat + " Failure count: " + failureCount.ToString());
+
                     if (failureCount >= failureThreshold)
                     {
+                        failureCount = 0; // Reset failure count in case we don't reboot (testing!)
+
                         // Raise the stall detected event. The subscriber is responsible for saving state and rebooting.
                         StallDetected?.Invoke(this, EventArgs.Empty);
 
                         // As a fallback, if no subscriber reboots the device within a few seconds, do it ourselves.
                         Thread.Sleep(4000);
+
+                        // Don't reboot - used for testing
                         //GHIElectronics.TinyCLR.Native.Power.Reset();
+
                     }
                 }
                 else
@@ -98,7 +123,6 @@ namespace AnodeMeter.Hardware
             while (!_exitThread)
             {
                 startTicks = DateTime.Now.Ticks;
-
                 try
                 {
                     // If we are in a backoff state, do nothing for this cycle.
@@ -112,7 +136,6 @@ namespace AnodeMeter.Hardware
                         }
                         // If we fall through, we are attempting a recovery.
                     }
-
                     if (_ai == null)
                     {
                         _ai = new HiResADC();
@@ -123,17 +146,19 @@ namespace AnodeMeter.Hardware
                                              HiResADC.ConversionMode.Continuous,
                                              HiResADC.ProgGain.x1);
                     }
-
                     double ThisValue = _ai.ReadVolts(HiResADC.InputChannel.Ch1);
 #if false
                     //TODO DAV DEBUG Test - simulate frozen read for debugging
 #warning //TODO DAV DEBUG Test - simulate frozen read for debugging
-                    if (ThisValue < 0.001) 
-                    { 
-                        for (int i = 0; i < 10; i++)
+                    if (SimulateStall) 
+                    {
+                        SimulateStall = false;
+                        for (int i = 0; i < 15; i++)
                         {
+                            Debug.WriteLine("HardwareAI: Simulating Stall..." + i);
                             Thread.Sleep(1000);
                         }
+                        
                     }
 #endif
                     // If the ignore flag is set, discard this reading and continue.
@@ -143,7 +168,6 @@ namespace AnodeMeter.Hardware
                         _lastReading = ThisValue; // Prime the last reading with this discarded value.
                         continue;
                     }
-
                     // Successful read, reset the error counter.
                     _errorCount = 0;
 
@@ -168,13 +192,12 @@ namespace AnodeMeter.Hardware
                         continue; // Skip processing this stuck value
                     }
                     // --- End of Stuck Reading Detection ---
-
                     AnalogInputEventArg e1 = new AnalogInputEventArg(ThisValue);
                     base.OnAnalogValueRead(e1);
-
                     // --- Update Heartbeat ---
                     // This indicates a successful, non-stalled loop completion.
                     this.HeartbeatCounter++;
+                    Globals.AdcFaulted = false;
                 }
                 catch (System.IO.IOException x)
                 {
@@ -202,6 +225,10 @@ namespace AnodeMeter.Hardware
 
                 if (sleepTime > 0)
                 {
+                    if(sleepTime > GlobalConsts.HARDWARE_AI_SCAN_MILLI_SECONDS)
+                    {
+                        sleepTime = GlobalConsts.HARDWARE_AI_SCAN_MILLI_SECONDS;
+                    }
                     Thread.Sleep(sleepTime);
                 }
             }

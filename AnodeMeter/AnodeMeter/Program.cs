@@ -16,7 +16,7 @@ namespace AnodeMeter
 #if true
             Profile.DebugTime("We have control"); //TODO DAV DEBUG
 
-            Globals.ShutdownCode = IOMap.GetShutdownCode();
+            Globals.ShutdownCode = (IOMap.ShutdownCode) IOMap.GetShutdownCode();
             IOMap.SetShutdownCode(IOMap.ShutdownCode.Running);
 
             System.Version ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;

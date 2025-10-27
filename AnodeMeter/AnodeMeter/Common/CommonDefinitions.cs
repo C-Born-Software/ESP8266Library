@@ -90,7 +90,8 @@ namespace AnodeMeter
         public static float gBattVolts = 4.0f;
         public static float gAvBattVolts = 4.0f;
 
-        public static uint ShutdownCode = 0;     // Reason for last shutdown
+        public static IOMap.ShutdownCode ShutdownCode = 0;     // Reason for last shutdown
+        public static bool AdcFaulted = false; // New flag for persistent ADC fault
 
         public enum PowerStates : byte { Normal = 0, BatteryTest, LowPower, VeryLowPower, Critical }; // For use in testing battery, or power-save when battery low
         public static PowerStates PowerState = PowerStates.Normal;

@@ -1,5 +1,4 @@
 ﻿using AnodeMeter.Common;
-using PervasiveDigital.Utilities;
 using System;
 using System.Collections;
 
@@ -15,8 +14,23 @@ namespace AnodeMeter.Common
         public string MeterNumber;
         MeasurementTypeReading[] _aDrops;
         MeasurementTypeReading[] _cDrops;
+        private readonly ArrayList _readingOrder; // Tracks the order of measurements
 
         public int MaxAnodeCount => _aDrops != null ? _aDrops.Length : 0;
+
+        public class TypedReading
+        {
+            public int AnodeIndex { get; }
+            public double Value { get; }
+            public MeasurementType Type { get; }
+
+            public TypedReading(int anodeIndex, double value, MeasurementType type)
+            {
+                AnodeIndex = anodeIndex;
+                Value = value;
+                Type = type;
+            }
+        }
 
         public PotMeasurementRecord(DateTime SampleDate, string PotNumber, string MeterNumber, int MaxAnodeCount)
         {
@@ -25,6 +39,7 @@ namespace AnodeMeter.Common
             this.MeterNumber = MeterNumber;
             _aDrops = new MeasurementTypeReading[MaxAnodeCount];
             _cDrops = new MeasurementTypeReading[MaxAnodeCount];
+            _readingOrder = new ArrayList();
         }
 
         public void AddMeasuredValue(string AnodeNumber, double MeasuredVolts, MeasurementType measType)
@@ -34,10 +49,13 @@ namespace AnodeMeter.Common
                 int anodeIndex = Convert.ToInt32(AnodeNumber) - 1;
                 if (anodeIndex >= 0)
                 {
+                    double value = MeasuredVolts * 1000.0;
+                    _readingOrder.Add(new TypedReading(anodeIndex, value, measType)); // Add composite object
+
                     if (measType == MeasurementType.RodDrop && anodeIndex < _aDrops.Length)
-                        _aDrops[anodeIndex] = new MeasurementTypeReading(MeasuredVolts * 1000.0);
+                        _aDrops[anodeIndex] = new MeasurementTypeReading(value);
                     else if (measType == MeasurementType.ClampDrop && anodeIndex < _cDrops.Length)
-                        _cDrops[anodeIndex] = new MeasurementTypeReading(MeasuredVolts * 1000.0);
+                        _cDrops[anodeIndex] = new MeasurementTypeReading(value);
                 }
             }
             catch (Exception)
@@ -116,6 +134,8 @@ namespace AnodeMeter.Common
         {
             if (anodeIndex < 0) return;
 
+            _readingOrder.Add(new TypedReading(anodeIndex, value, type)); // Add composite object
+
             if (type == MeasurementType.RodDrop)
             {
                 if (anodeIndex < _aDrops.Length)
@@ -126,6 +146,29 @@ namespace AnodeMeter.Common
                 if (anodeIndex < _cDrops.Length)
                     _cDrops[anodeIndex] = new MeasurementTypeReading(value);
             }
+        }
+
+        /// <summary>
+        /// Gets the last 'count' readings that were added to this record.
+        /// </summary>
+        /// <param name="count">The number of recent readings to retrieve.</param>
+        /// <returns>An ArrayList containing the most recent readings.</returns>
+        public ArrayList GetLastReadings(int count)
+        {
+            var recentReadings = new ArrayList();
+            int startIndex = _readingOrder.Count - count;
+            if (startIndex < 0) startIndex = 0;
+
+            for (int i = startIndex; i < _readingOrder.Count; i++)
+            {
+                recentReadings.Add(((TypedReading)_readingOrder[i]).Value);
+            }
+            return recentReadings;
+        }
+
+        public ArrayList GetAllReadingsInOrder()
+        {
+            return new ArrayList(_readingOrder);
         }
     }
 

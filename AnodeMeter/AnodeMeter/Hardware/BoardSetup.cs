@@ -76,7 +76,7 @@ namespace AnodeMeter
 
         public enum ShutdownCode : byte
         {
-            Unknown = 0, UserMenu, UserButton, LowBattery, CritBattery, ReConfig, MemExtend, ChangeMode, AutoOff,AIStall,
+            Unknown = 0, UserMenu, UserButton, LowBattery, CritBattery, ReConfig, MemExtend, ChangeMode, AutoOff,AIStall,AIStallReboot,Reset,
             Running = 100, Sleeping, RunFail
         }
 
@@ -104,7 +104,7 @@ namespace AnodeMeter
                     s = "MemExtend";
                     break;
                 case ShutdownCode.ChangeMode:
-                    s = "ChangeMode";
+                    s = "DDMode";
                     break;
                 case ShutdownCode.AutoOff:
                     s = "AutoOff";
@@ -120,6 +120,9 @@ namespace AnodeMeter
                     break;
                 case ShutdownCode.RunFail:
                     s = "RunFailed";
+                    break;
+                case ShutdownCode.Reset:
+                    s = "Reset";
                     break;
                 default:
                     s = "???";
@@ -808,13 +811,11 @@ namespace AnodeMeter.Hardware
                                             PowerOff("", 1);
                                             break;
                                         }
-#if false   // DAV - Used for testing Hibernate - seems to work!
+#if true   // DAV - Used for testing Reset - seems to work!
                                     if (CentreButton.held)
                                     {
-                                        MenuItem = 0;
-                                        MenuStep = 0;
-                                        Thread.Sleep(1000);
-                                        GHIElectronics.TinyCLR.Native.Power.Sleep(DateTime.Now.AddMinutes(1));
+                                        IOMap.SetShutdownCode(IOMap.ShutdownCode.Reset);
+                                        GHIElectronics.TinyCLR.Native.Power.Reset();
                                         break;
                                     }
 #endif
@@ -1611,6 +1612,12 @@ namespace AnodeMeter.Hardware
         public void PowerOff(string msg, int delay)
         {
             DataStore.FlushFileSystem();
+
+            // Save the current metering context before powering down.
+            if (_am != null)
+            {
+                _am.SaveContext();
+            }
 
             Boolean Mode = InSetupMode;
             int Screen = _lcd.SetScreen(1); // Change to alternate screen
