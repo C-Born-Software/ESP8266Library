@@ -65,57 +65,32 @@ namespace AnodeMeter.Common
             }
         }
 
-        private string ConcatenateMeasValues(MeasurementTypeReading[] rDrops, ArrayList arl = null, bool useAnodeNumberOrder = false, string potNumber = null)
+        private string ConcatenateMeasValues(MeasurementTypeReading[] rDrops, ArrayList arl = null)
         {
             string csv = "";
             int nonNullValues = 0;
-            if (useAnodeNumberOrder && potNumber != null)
+          
+            int i = 1;
+            foreach (MeasurementTypeReading ar in rDrops)
             {
-                // For Nordural: output in anode number order (1-20)
-                // Map: anode number → position → array index → voltage
-                for (int anodeNumber = 1; anodeNumber <= rDrops.Length; anodeNumber++)
+                if ((ar != null) && (arl == null || arl.Contains(i.ToString())))
                 {
-                    int position = AnodeMapper.GetPosition(potNumber, anodeNumber);
-                    int arrayIndex = position - 1;
-
-                    if (arrayIndex >= 0 && arrayIndex < rDrops.Length)
-                    {
-                        MeasurementTypeReading ar = rDrops[arrayIndex];
-                        if (ar != null && (arl == null || arl.Contains(anodeNumber.ToString())))
-                        {
-                            csv += ("," + ar.VoltageDrop.ToString("F2"));
-                            nonNullValues++;
-                        }
-                        else
-                            csv += ",";
-                    }
-                    else
-                        csv += ",";
+                    csv += ("," + ar.VoltageDrop.ToString("F2"));
+                    nonNullValues++;
                 }
+                else
+                    csv += ",";
+                ++i;
             }
-            else
-            {
-                int i = 1;
-                foreach (MeasurementTypeReading ar in rDrops)
-                {
-                    if ((ar != null) && (arl == null || arl.Contains(i.ToString())))
-                    {
-                        csv += ("," + ar.VoltageDrop.ToString("F2"));
-                        nonNullValues++;
-                    }
-                    else
-                        csv += ",";
-                    ++i;
-                }
-            }
+          
             return (nonNullValues == 0 ? "" : csv);
         }
 
-        public string MyToString(String ScheduleName, ArrayList arl = null, bool useAnodeNumberOrder = false)
+        public string MyToString(String ScheduleName, ArrayList arl = null)
         {
             string sOut = "";
-            string rDrops = ConcatenateMeasValues(_aDrops, arl, useAnodeNumberOrder, this.PotNumber);
-            string cDrops = ConcatenateMeasValues(_cDrops, arl, useAnodeNumberOrder, this.PotNumber);
+            string rDrops = ConcatenateMeasValues(_aDrops, arl);
+            string cDrops = ConcatenateMeasValues(_cDrops, arl);
 
             if (rDrops != "")
                 sOut += (SampleDate + new TimeSpan(0, 0, DateOffset++)).ToString("yyyy-MM-dd HH:mm:ss") + "," + PotNumber.TrimLeadingChar('0') + "," +
@@ -128,7 +103,7 @@ namespace AnodeMeter.Common
             return sOut;
         }
 
-        public string MaskedPotString(string MaskSched, bool useAnodeNumberOrder = false)
+        public string MaskedPotString(string MaskSched)
         {
             char[] comma = { ',' };
             string[] RecordParts = MaskSched.Split(comma);
@@ -140,7 +115,7 @@ namespace AnodeMeter.Common
             for (int i = 6; i < RecordParts.Length; ++i)
                 arl.Add(RecordParts[i].Trim());
 
-            return MyToString(ScheduleName, arl, useAnodeNumberOrder);
+            return MyToString(ScheduleName, arl);
         }
 
         public Hashtable GetReadings(MeasurementType type)

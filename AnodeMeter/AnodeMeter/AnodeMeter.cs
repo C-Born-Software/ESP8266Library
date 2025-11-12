@@ -2701,13 +2701,13 @@ namespace AnodeMeter
                         // Only write results if we actually have something to write and DataStore is available
                         if (_PotAnodeResults != null && _ds != null)
                         {
-                            _ds.WritePotMeasurement(_PotAnodeResults.MyToString(Navigation.SubChoice(CurrentChoice), null, _plant.UsesAnodeNumbers()));
+                            _ds.WritePotMeasurement(_PotAnodeResults.MyToString(Navigation.SubChoice(CurrentChoice), null));
 
                             if (MaskedPots.Contains(_PotAnodeResults.PotNumber))
                             {
                                 // Now we just have to build an output string from the schedule info and the results data!
                                 string sched = MaskedPots[_PotAnodeResults.PotNumber].ToString();
-                                var sData = _PotAnodeResults.MaskedPotString(sched, _plant.UsesAnodeNumbers());
+                                var sData = _PotAnodeResults.MaskedPotString(sched);
                                 _ds.WritePotMeasurement(sData);
                             }
                         }

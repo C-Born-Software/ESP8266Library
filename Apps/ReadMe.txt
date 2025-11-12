@@ -1,6 +1,20 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.3.0.3_20251113.tca
+==========================
+Vn 4.3.4.4. Bugfix
+Previous version saved measurements in Anode Number order, rather than order in which they were read.
+This version corrects that oversight.
+
+App_2.3.0.3_20251112.tca
+==========================
+Vn 4.3.4.3. This version contains new features and enhancements, including:
+Better startup behaviour with random/unset RTC
+New SmelterConfiguration parameters UpperMillivoltThreshold and LowerMillivoltThreshold can be used to override the Nominal Current derived values for implausible readings
+For NOR site anode numbers from schedule will be converted to anode positions, and the reverse mapping applied when writing measurements
+The operator display will show position:number instead of position:measurement_type as at other sites
+
 App_2.3.0.3_20251027.tca
 ==========================
 Vn 4.3.4.2. This version improves and extends the context recovery mechanism.
