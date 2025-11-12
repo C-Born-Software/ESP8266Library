@@ -95,8 +95,10 @@ namespace AnodeMeter.Common
                             {
                                 int anodeValue = Convert.ToInt32(anodeString);
 
-                                // NEW: Convert anode number to position if site uses anode numbers
-                                if (PlantDetails != null && PlantDetails.UsesAnodeNumbers())
+                                // Ad-hoc schedules already contain positions
+                                if (ScheduleName != "AH" &&
+                                    PlantDetails != null &&
+                                    PlantDetails.UsesAnodeNumbers())
                                 {
                                     anodeValue = AnodeMapper.GetPosition(potName, anodeValue);
                                 }

@@ -51,6 +51,7 @@ namespace AnodeMeter
         private LcdDisplay.CursorPosition MillivoltPosition = new LcdDisplay.CursorPosition(0, 11);
         private LcdDisplay.CursorPosition CurrentAnodeNumberPositionIcon = new LcdDisplay.CursorPosition(0, 13);
         private LcdDisplay.CursorPosition CurrentAnodeNumberPosition = new LcdDisplay.CursorPosition(0, GlobalConsts.POT_NAME_LENGTH + 2);
+        private LcdDisplay.CursorPosition NORAnodeNumberPosition = new LcdDisplay.CursorPosition(0, GlobalConsts.POT_NAME_LENGTH + 1);
         private LcdDisplay.CursorPosition CurrentPotPositionIcon = new LcdDisplay.CursorPosition(0, GlobalConsts.POT_NAME_LENGTH + 5);
         private LcdDisplay.CursorPosition CurrentPotPosition = new LcdDisplay.CursorPosition(0, 0);
         private LcdDisplay.CursorPosition CurrentPotAnodeSeparatorPosition = new LcdDisplay.CursorPosition(0, GlobalConsts.POT_NAME_LENGTH + 1);
@@ -2830,10 +2831,32 @@ namespace AnodeMeter
             if (ASchedule != null)
             {
                 _lcd.MoveIntoDisplay(_CurrentAnode._potName, CurrentPotPosition);
-                _lcd.MoveIntoDisplay(":", CurrentPotAnodeSeparatorPosition);
-                _lcd.MoveIntoDisplay(_CurrentAnode._AnodePos.ToString(), CurrentAnodeNumberPosition);
-                //_lcd.MoveIntoDisplay(_CurrentAnode._measType.ToMtString(), CurrentMeteringTypePosition);
-                _lcd.MoveIntoDisplay(MtString(_CurrentAnode._measType), CurrentMeteringTypePosition);
+                //_lcd.MoveIntoDisplay(":", CurrentPotAnodeSeparatorPosition);
+
+                int position;
+                if (int.TryParse(_CurrentAnode._AnodePos, out position))
+                {
+                    if (_plant.UsesAnodeNumbers())
+                    {
+                        // Nordural format: Show "AnodeNum:Pos" instead of "Pos R"
+                        int anodeNumber = AnodeMapper.GetAnode(_CurrentAnode._potName, position);
+                        string displayText = position.ToString("D2") + ":" + anodeNumber.ToString("D2");
+                        _lcd.MoveIntoDisplay(displayText, NORAnodeNumberPosition);
+                    }
+                    else
+                    {
+                        // Standard format: Show position and measurement type
+                        _lcd.MoveIntoDisplay(position.ToString(), CurrentAnodeNumberPosition);
+                        _lcd.MoveIntoDisplay(":", CurrentPotAnodeSeparatorPosition);
+                        _lcd.MoveIntoDisplay(MtString(_CurrentAnode._measType), CurrentMeteringTypePosition);
+                    }
+                }
+                else
+                {
+                    _lcd.MoveIntoDisplay(_CurrentAnode._AnodePos.ToString(), CurrentAnodeNumberPosition);
+                    _lcd.MoveIntoDisplay(":", CurrentPotAnodeSeparatorPosition);
+                    _lcd.MoveIntoDisplay(MtString(_CurrentAnode._measType), CurrentMeteringTypePosition);
+                }
 
                 DisplayLastThreeReadings();
             }
