@@ -1,6 +1,12 @@
 SitCore SC20260N (SC20) Based Meter Application Code
 (Most recent notes at top)
 
+App_2.3.0.3_20251027.tca
+==========================
+Vn 4.3.4.2. This version improves and extends the context recovery mechanism.
+Context (position in schedule, current anode, anodes already read in pot) is saved on normal 2-button power off, Auto power-off based on time, low battery, etc
+Meter should then resume on power up from position in schedule.
+
 App_2.3.0.3_20251005.tca
 ==========================
 Vn 4.3.4.1. This version contains extensive Analog Input Hardening modifications, specifically for Nordural

@@ -184,7 +184,11 @@ namespace AnodeMeter.Hardware
 
                     if (_identicalReadingCount > MAX_IDENTICAL_READINGS)
                     {
-                        Logging.DbgWrite("HardwareAI: Reset ADC");
+                        // Ok, so we CAN get multiple identical readings legitimately,
+                        // (some HW seems more stable than others) so don't log an error here.
+                        // However still do a reset, just in case - won't hurt our input.
+                        // DAV 4 NOV 2025
+                        // Logging.DbgWrite("HardwareAI: Reset ADC");
                         //Logging.IssueEvent(Logging.ErrSeverity.Warning, "HardwareAI::ScanInputLoop", "Stuck ADC reading detected. Resetting ADC.", "AI Stuck");
                         _ai.Reset();
                         _identicalReadingCount = 0; // Reset counter after action
@@ -223,14 +227,13 @@ namespace AnodeMeter.Hardware
                 var elapsed = (int)((DateTime.Now.Ticks - startTicks) / TimeSpan.TicksPerMillisecond);
                 var sleepTime = GlobalConsts.HARDWARE_AI_SCAN_MILLI_SECONDS - elapsed;
 
-                if (sleepTime > 0)
+                // If sleepTime <= 0 then probably have a RTC issue (Startup, RTC not set)
+                // if > HARDWARE_AI_SCAN_MILLI_SECONDS then probably overflow
+                if (sleepTime <= 0 || sleepTime > GlobalConsts.HARDWARE_AI_SCAN_MILLI_SECONDS)
                 {
-                    if(sleepTime > GlobalConsts.HARDWARE_AI_SCAN_MILLI_SECONDS)
-                    {
-                        sleepTime = GlobalConsts.HARDWARE_AI_SCAN_MILLI_SECONDS;
-                    }
-                    Thread.Sleep(sleepTime);
+                    sleepTime = GlobalConsts.HARDWARE_AI_SCAN_MILLI_SECONDS;
                 }
+                Thread.Sleep(sleepTime);
             }
         }
 

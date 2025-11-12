@@ -294,144 +294,6 @@ namespace AnodeMeter
             }
 
         }
-#if false
-        public class PotMeasurementRecord
-        {
-            public class MeasurementTypeReading
-            {
-                public double VoltageDrop { get { return _measDrop; } }
-                internal double _measDrop;
-
-                public MeasurementTypeReading(double Measurement)
-                {
-                    _measDrop = Measurement;
-                }
-            }
-
-            DateTime SampleDate;
-            private int DateOffset = 0; // Date offset (seconds) to make unique in DB, which only uses date and pot number ar promary key
-            internal string PotNumber;
-            string MeterNumber;
-            MeasurementTypeReading[] _aDrops;
-            MeasurementTypeReading[] _cDrops;
-
-            public PotMeasurementRecord(DateTime SampleDate, string PotNumber, string MeterNumber, int MaxAnodeCount)
-            {
-                this.SampleDate = SampleDate;
-                this.PotNumber = PotNumber;
-                this.MeterNumber = MeterNumber;
-                _aDrops = new MeasurementTypeReading[MaxAnodeCount];
-                _cDrops = new MeasurementTypeReading[MaxAnodeCount];
-            }
-
-            /// <summary>
-            /// Constructor to rebuild a record from its serialized string representation.
-            /// </summary>
-            public PotMeasurementRecord(string csvRecord, int maxAnodeCount)
-            {
-                _aDrops = new MeasurementTypeReading[maxAnodeCount];
-                _cDrops = new MeasurementTypeReading[maxAnodeCount];
-
-                var lines = csvRecord.Split('\n');
-                foreach (var line in lines)
-                {
-                    if (string.IsNullOrEmpty(line)) continue;
-
-                    var parts = line.Split(',');
-                    if (parts.Length < 4) continue;
-
-                    if (SampleDate == default(DateTime))
-                        SampleDate = parts[0].ParseDateTime();
-                    if (string.IsNullOrEmpty(PotNumber))
-                        PotNumber = parts[1];
-                    if (string.IsNullOrEmpty(MeterNumber))
-                        MeterNumber = parts[3];
-
-                    var measTypeStr = parts[2];
-                    var type = measTypeStr.EndsWith(":RodDrops") ? MeasurementType.RodDrop : MeasurementType.ClampDrop;
-
-                    for (int i = 4; i < parts.Length; i++)
-                    {
-                        if (!string.IsNullOrEmpty(parts[i]))
-                        {
-                            double.TryParse(parts[i], out double value);
-                            if (type == MeasurementType.RodDrop)
-                                _aDrops[i - 4] = new MeasurementTypeReading(value);
-                            else
-                                _cDrops[i - 4] = new MeasurementTypeReading(value);
-                        }
-                    }
-                }
-            }
-            public void AddMeasuredValue(string AnodeNumber, double MeasuredVolts, MeasurementType measType)
-            {
-                try
-                {
-                    int anodeIndex = Convert.ToInt32(AnodeNumber) - 1;
-                    if (measType == MeasurementType.RodDrop)
-                        _aDrops[anodeIndex] = new MeasurementTypeReading(MeasuredVolts * 1000.0);
-                    else if (measType == MeasurementType.ClampDrop)
-                        _cDrops[anodeIndex] = new MeasurementTypeReading(MeasuredVolts * 1000.0);
-                }
-                catch (Exception ex)
-                {
-                    Logging.IssueEvent(Logging.ErrSeverity.Severe, "PotMeasurementRecord::AddMeasuredValue", "Attempted to add a reading for anode= " + ((AnodeNumber == null) ? "null" : AnodeNumber) + ", MeasuredVolts=" + MeasuredVolts.ToString() + ". Reason: " + ex.Message, "Software err");
-                }
-            }
-
-            private string ConcatenateMeasValues(MeasurementTypeReading[] rDrops, ArrayList arl = null)
-            {
-                string csv = "";
-                int nonNullValues = 0;
-                int i = 1;
-                foreach (MeasurementTypeReading ar in rDrops)
-                {
-                    if ((ar != null) && (arl == null || arl.Contains(i.ToString())))
-                    {
-                        csv += ("," + ar.VoltageDrop.ToString("F2"));
-                        nonNullValues++;
-                    }
-                    else
-                        csv += ",";
-                    ++i;
-                }
-                return (nonNullValues == 0 ? "" : csv);
-            }
-
-            public string MyToString(String ScheduleName, ArrayList arl = null)
-            {
-                string sOut = "";
-                string rDrops = ConcatenateMeasValues(_aDrops, arl);
-                string cDrops = ConcatenateMeasValues(_cDrops, arl);
-
-                if (rDrops != "")
-                    sOut += (SampleDate + new TimeSpan(0, 0, DateOffset++)).ToString("yyyy-MM-dd HH:mm:ss") + "," + PotNumber.TrimLeadingChar('0') + "," +
-                        ScheduleName + ":RodDrops" + "," + MeterNumber.ToString() + rDrops + "\n";
-
-                if (cDrops != "")
-                    sOut += (SampleDate + new TimeSpan(0, 0, DateOffset++)).ToString("yyyy-MM-dd HH:mm:ss") + "," + PotNumber.TrimLeadingChar('0') + "," +
-                        ScheduleName + ":ClampDrops" + "," + MeterNumber.ToString() + cDrops + "\n";
-
-                return sOut;
-            }
-
-            // Create output data for a masked schedule
-            public string MaskedPotString(string MaskSched)
-            {
-                char[] comma = { ',' };
-                string[] RecordParts = MaskSched.Split(comma);
-                if (RecordParts.Length < 6)
-                    return "";
-
-                string ScheduleName = RecordParts[2];
-                ArrayList arl = new ArrayList();
-                for (int i = 6; i < RecordParts.Length; ++i)
-                    arl.Add(RecordParts[i].Trim());
-
-                return MyToString(ScheduleName, arl);
-            }
-        }
-#endif
         public AnodeMeter()
         {
 
@@ -1042,7 +904,7 @@ namespace AnodeMeter
                 // Every Few minutes, upload any logged errors to the Database-Server
                 if (DateTime.Now > _dtUploadLogs)
                 {
-                    // Cache logged messages while dealing with loggfiles
+                    // Cache logged messages while dealing with log files
                     // to avoid concurrency problems
                     Logging.LockOutput();
 
@@ -1432,7 +1294,10 @@ namespace AnodeMeter
                     _bsp.EnterSetupMode(BoardSetup.MenuTypes.Mode, 0, 0);
 
                 if (!_tm.IsSystemTimeOK())
+                {
+                    _lcd.CancelTimedMessages(); // ensures “Confirm Time” is visible immediately
                     _bsp.EnterSetupMode(BoardSetup.MenuTypes.Settings, BoardSetup.MenuItems.setClock, 3);
+                }
 
             }
         }

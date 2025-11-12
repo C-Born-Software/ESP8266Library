@@ -59,37 +59,44 @@ namespace AnodeMeter.Common
                 if (LastServerSync > dtTest)
                     dtTest = LastServerSync;
 
-                dtTest -= new TimeSpan(1, 0, 0, 0); // Allow time up to 1day behind build/server time for timezone difference & system testings
+                // allow a little backward tolerance
+                var lowerBound = dtTest - TimeSpan.FromDays(1); // Timezone difference allowance
+                var upperBound = dtTest + TimeSpan.FromDays(31);// Could have been off for a while
 
-                if (dtLocalTime >= dtTest && dtLocalTime.Year < 2100)
+                // Attempt RTC read
+                if (dtLocalTime == DateTime.MinValue)
                 {
-                    if (dtLocalTime <= (dtTest + new TimeSpan(31, 0, 0, 0, 0)))
+                    // RTC read failed: set system clock to baseline, require confirmation
+                    _rtcTimeOK = false;
+                    SystemTime.SetTime(dtTest);
+                    return;
+                }
+
+                if (dtLocalTime >= lowerBound && dtLocalTime.Year < 2100) {
+                    if (dtLocalTime <= upperBound)
                     {
-                        // Within 30 days of build or last sync, assume time ok
-                        _rtcTimeOK = true;
-                        SystemTime.SetTime(dtLocalTime);
-                        //Utility.SetLocalTime(dtLocalTime);
+                            // Within 30 days of build or last sync, assume time ok
+                            _rtcTimeOK = true;
+                            SystemTime.SetTime(dtLocalTime);
                     }
                     else
                     {
                         // Could be ok, but require confirmation
                         _rtcTimeOK = false;
                         SystemTime.SetTime(dtLocalTime);
-                        //Utility.SetLocalTime(dtLocalTime);
                     }
                 }
                 else
                 {
-                    // Seems wrong, set it 30 days before build date and require confirmation
+                    // Seems wrong, set it to baseline and require confirmation
                     _rtcTimeOK = false;
 
                     Logging.IssueEvent(Logging.ErrSeverity.Severe, "TimeManager::RefreshSystemTime",
                         "Time set to implausible value of \"" + dtLocalTime.ToString("dd-MM-yyyy HH:mm:ss") + "\".", "RTC Bat Low");
 
-                    dtLocalTime = Globals.BuildDate - new TimeSpan(30, 0, 0, 0, 0);
+                    dtLocalTime = dtTest;
                     SyncTime(dtLocalTime);
                 }
-
             }
         }
         public bool IsSystemTimeOK()
