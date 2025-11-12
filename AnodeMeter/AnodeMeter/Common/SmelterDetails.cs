@@ -84,9 +84,16 @@ namespace AnodeMeter.Common
                 private BarMaterial _Material = BarMaterial.Copper;
                 public double NominalVoltageDrop { get; set; }
 
+                // Optional override parameters for upper and lower mV thresholds
+                // -1 indicates not set (use calculated values instead)
+                public double UpperMillivoltThreshold { get; set; }
+                public double LowerMillivoltThreshold { get; set; }
+
                 public AnodeBar()
                 {
                     // Setup default values
+                    UpperMillivoltThreshold = -1;
+                    LowerMillivoltThreshold = -1;
                     SetParameters(8000, "Copper", 7000, 95);
                 }
 
@@ -347,6 +354,16 @@ namespace AnodeMeter.Common
                                                                        xml.ReadAttributeString("Material"),
                                                                        xml.ReadAttributeValue("CrossSectionalAreaMilliMeters"),
                                                                        xml.ReadAttributeValue("MeasurementDistanceMilliMeters"));
+
+                                            // Read optional override thresholds if present
+                                            if (xml.MoveToAttribute("UpperMillivoltThreshold"))
+                                                thisLine._ab.UpperMillivoltThreshold = xml.ReadAttributeValue("UpperMillivoltThreshold");
+
+                                            if (xml.MoveToAttribute("LowerMillivoltThreshold"))
+                                                thisLine._ab.LowerMillivoltThreshold = xml.ReadAttributeValue("LowerMillivoltThreshold");
+
+                                            // Without this we loop forever if the XML node has an attribute we don't handle.
+                                            xml.MoveToElement();
                                         }
                                     }
                                     break;
@@ -530,12 +547,22 @@ namespace AnodeMeter.Common
             bool bOK = false;
 
             ADrop = ADrop / _measDetails._scaleFactor;
-            double nominalVDrop = GetLineDetails(GetPotDetails(Pot)._line)._ab.NominalVoltageDrop;
+            PotlineDetails lineDetails = GetLineDetails(GetPotDetails(Pot)._line);
+            double nominalVDrop = lineDetails._ab.NominalVoltageDrop;
+
+            // Use override thresholds if provided (>= 0), otherwise use calculated values
+            double upperThreshold = lineDetails._ab.UpperMillivoltThreshold >= 0
+                ? lineDetails._ab.UpperMillivoltThreshold
+                : nominalVDrop * 2.0;
+
+            double lowerThreshold = lineDetails._ab.LowerMillivoltThreshold >= 0
+                ? lineDetails._ab.LowerMillivoltThreshold
+                : nominalVDrop / 2.5;
 
             if (isRodDrop)
-                bOK = ADrop / 2 > nominalVDrop || ADrop * 2.5 < nominalVDrop;
+                bOK = ADrop > upperThreshold || ADrop < lowerThreshold;
             else
-                bOK = ADrop.Abs() > LARGE_OUTLIER_CLAMPDROP_THRESH || ADrop.Abs() * 2.5 < nominalVDrop;
+                bOK = ADrop.Abs() > LARGE_OUTLIER_CLAMPDROP_THRESH || ADrop.Abs() < lowerThreshold;
 
             return bOK;
         }

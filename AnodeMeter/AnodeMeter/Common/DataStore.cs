@@ -922,6 +922,7 @@ namespace AnodeMeter.Common
             return FileExists(FileDefs.DeviceConfigFile);
         }
 
+#if false // currently never used!
         public static bool UpdateXmlValue(string UniqueTagName, string NewTagValue)
         {
             bool bOK = false;
@@ -968,5 +969,6 @@ namespace AnodeMeter.Common
             return bOK;
 
         }
-    }
+#endif
+    }   
 }
