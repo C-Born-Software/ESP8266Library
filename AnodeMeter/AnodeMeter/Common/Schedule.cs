@@ -12,6 +12,7 @@ namespace AnodeMeter.Common
     {
         // Static delegate for logging, to be injected by the main application.
         public static LogActionDelegate LogAction;
+        public static SmelterDetails PlantDetails;
 
         public class AnodeSched
         {
@@ -84,8 +85,33 @@ namespace AnodeMeter.Common
                     {
                         string[] potAnodes = pots[i].Split(comma);
                         string[] anodeList = new string[potAnodes.Length - 6];
+                        string potName = potAnodes[0]; // Extract pot name for conversion
+
                         for (int j = 6; j < potAnodes.Length; j++)
-                            anodeList[j - 6] = potAnodes[j];
+                        {
+                            string anodeString = potAnodes[j].Trim();
+
+                            try
+                            {
+                                int anodeValue = Convert.ToInt32(anodeString);
+
+                                // NEW: Convert anode number to position if site uses anode numbers
+                                if (PlantDetails != null && PlantDetails.UsesAnodeNumbers())
+                                {
+                                    anodeValue = AnodeMapper.GetPosition(potName, anodeValue);
+                                }
+
+                                anodeList[j - 6] = anodeValue.ToString();
+                            }
+                            catch (Exception ex)
+                            {
+                                if (LogAction != null)
+                                    LogAction(2, "Schedule::AddSchedule", "Error converting anode value '" + anodeString + "' for pot " + potName + ". Reason: " + ex.Message, "Anode Parse Err");
+
+                                // Keep original value if conversion fails
+                                anodeList[j - 6] = anodeString;
+                            }
+                        }
 
                         PotList.Add(new PotSched(potAnodes[0], potAnodes[1], anodeList));
                     }

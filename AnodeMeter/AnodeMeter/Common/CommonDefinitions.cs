@@ -93,6 +93,9 @@ namespace AnodeMeter
         public static IOMap.ShutdownCode ShutdownCode = 0;     // Reason for last shutdown
         public static bool AdcFaulted = false; // New flag for persistent ADC fault
 
+        // for Nordural - Anode Number instead of Positions
+        public static bool UseAnodeNumbers = false;
+
         public enum PowerStates : byte { Normal = 0, BatteryTest, LowPower, VeryLowPower, Critical }; // For use in testing battery, or power-save when battery low
         public static PowerStates PowerState = PowerStates.Normal;
 

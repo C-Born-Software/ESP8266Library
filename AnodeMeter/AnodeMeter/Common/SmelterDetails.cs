@@ -9,6 +9,9 @@ namespace AnodeMeter.Common
     public class SmelterDetails
     {
         public static LogActionDelegate LogAction;
+        private bool _usesAnodeNumbers = false;
+        public bool UsesAnodeNumbers() { return _usesAnodeNumbers; }
+
         // Enumerate the 8 ways to traverse a pot when metering
         public enum AnodeOrderRule
         {
@@ -270,6 +273,9 @@ namespace AnodeMeter.Common
                             _locationTag = xml.ReadAttributeString("LocationTag");
                             if (_locationTag == "PTD")
                                 result.MaskT4 = true;
+                            if (_locationTag == "NOR")
+                                _usesAnodeNumbers = true;
+
                             result.ShiftLength = new TimeSpan((long)xml.ReadAttributeValue("WorkShiftHours") * TimeSpan.TicksPerHour);
                             result.FirstShiftOffset = new TimeSpan((long)xml.ReadAttributeValue("FirstShiftStartMinutes") * TimeSpan.TicksPerMinute);
                             result.DefaultLine = xml.ReadAttributeString("DefaultLineName");

@@ -35,6 +35,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../AnodeMeter/Common/Extensions.cs" />
+    <Compile Include="AnodeMapper.cs" />
     <Compile Include="PotMeasurementRecord.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="../AnodeMeter/Common/Schedule.cs" />

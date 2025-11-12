@@ -356,6 +356,7 @@ namespace AnodeMeter
                 // Inject the logging method into the Schedule class using the wrapper
                 Schedule.LogAction = LogWrapper;
                 SmelterDetails.LogAction = LogWrapper;
+                Schedule.PlantDetails = _plant;
 
                 RegisterActivity(false);
                 _dtWaitaFewSeconds = DateTime.Now.AddSeconds(3);
@@ -2699,13 +2700,13 @@ namespace AnodeMeter
                         // Only write results if we actually have something to write and DataStore is available
                         if (_PotAnodeResults != null && _ds != null)
                         {
-                            _ds.WritePotMeasurement(_PotAnodeResults.MyToString(Navigation.SubChoice(CurrentChoice)));
+                            _ds.WritePotMeasurement(_PotAnodeResults.MyToString(Navigation.SubChoice(CurrentChoice), null, _plant.UsesAnodeNumbers()));
 
                             if (MaskedPots.Contains(_PotAnodeResults.PotNumber))
                             {
                                 // Now we just have to build an output string from the schedule info and the results data!
                                 string sched = MaskedPots[_PotAnodeResults.PotNumber].ToString();
-                                var sData = _PotAnodeResults.MaskedPotString(sched);
+                                var sData = _PotAnodeResults.MaskedPotString(sched, _plant.UsesAnodeNumbers());
                                 _ds.WritePotMeasurement(sData);
                             }
                         }
