@@ -1275,7 +1275,10 @@ namespace AnodeMeter
             _sp.VoltDropHandler += new SignalProcessor.VoltDropRead(OnNewMeasurement);
 
             if (Globals.CfgState == Globals.ConfigState.ConfigOK)
+            {
                 AnodeMeterSchedules = new Schedule();
+                Schedule.GetMeasModeIndex = () => Globals.MeasurementModeIndex;
+            }
 
             _lcd.WaitReady();
             _lcd.ClearDisplay();
